@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "SocialSparrow Product Extractor",
+  "name": "AstuteAnaconda Product Extractor",
   "version": "1.1",
   "description": "Extract products from web pages using SocialSparrow API",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "clipboardWrite"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

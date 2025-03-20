@@ -10,18 +10,40 @@ function extractProductsFromPage() {
       // Extract products
       const products = SocialSparrow.extractProducts();
       
-      // Always log the products array and directly use console.table
-      console.log('Products extracted from page:');
+      // Log the current site
+      console.log(`Current site: ${window.location.hostname}`);
       
-      // Create a flattened version of the products for better table display
-      const flattenedProducts = products.map(product => ({
-        name: product.name || 'N/A',
-        brand: product.brand || 'N/A',
-        price: product.price || 'N/A',
-        url: product.url || 'N/A'
-      }));
+      // Log the number of products found
+      console.log(`Found ${products ? products.length : 0} product elements`);
       
-      console.table(flattenedProducts);
+      if (products && products.length > 0) {
+        // Create a completely separate array of ultra-simple objects
+        const simpleProducts = [];
+        
+        for (let i = 0; i < products.length; i++) {
+          // Use the most primitive way to create objects - direct property assignment
+          const simpleObj = {};
+          simpleObj.name = String(products[i].name || 'N/A');
+          simpleObj.brand = String(products[i].brand || 'N/A');
+          simpleObj.price = String(products[i].price || 'N/A');
+          simpleObj.url = String(products[i].url || 'N/A');
+          
+          simpleProducts.push(simpleObj);
+        }
+        
+        // First log just the raw data as strings to completely avoid object references
+        console.log('Products extracted from page:');
+        products.forEach((p, index) => {
+          console.log(`Product ${index}: ${p.name || 'N/A'} - ${p.brand || 'N/A'} - ${p.price || 'N/A'}`);
+        });
+        
+        // Then create a separate section for the table
+        console.log('------- PRODUCT TABLE -------');
+        console.table(simpleProducts);
+        console.log(`Total products found: ${simpleProducts.length}`);
+      } else {
+        console.log('No products found or empty array returned');
+      }
       
       // Check if we need to retry - separate from logging
       if (!products || products.length === 0) {
@@ -49,34 +71,47 @@ function extractProductsFromPage() {
 function isProductPage() {
   const url = window.location.href;
   
-  // QFC product pages
-  if (url.includes('qfc.com') && (
-      url.includes('/search?') || 
-      url.includes('/shop/') || 
-      document.querySelector('[data-testid^="product-card-"]')
-  )) {
+  // Common product page indicators in URL
+  const commonProductIndicators = [
+    '/products/', 
+    '/product/', 
+    '/search', 
+    '/browse', 
+    '/shop/',
+    '/grocery/',
+    '/category/',
+    '/department/',
+    '/items/',
+    '/filter'
+  ];
+  
+  // Check for generic product indicators in URL
+  if (commonProductIndicators.some(indicator => url.includes(indicator))) {
     return true;
   }
   
-  // Whole Foods product pages
-  if (url.includes('wholefoodsmarket.com') && (
-      url.includes('/search?') || 
-      url.includes('/products/') ||
-      document.querySelector('.w-pie--product-tile')
-  )) {
-    return true;
-  }
-  
-  // Walmart product pages
-  if (url.includes('walmart.com') && (
-      url.includes('/search?') || 
-      url.includes('/browse/') ||
-      document.querySelector('[data-automation-id="product-title"]')
-  )) {
-    return true;
-  }
-  
-  return false;
+  // Generic product selectors that work across many sites
+  const productSelectors = [
+    // Generic selectors - will work across many sites
+    '.product-tile',
+    '.product-card',
+    '.product-item',
+    '.product-container',
+    '.product-grid-item',
+    '.product-list-item',
+    '.product',
+    '.item-product',
+    '.grid-product',
+    '.catalog-product',
+    '[data-product-id]',
+    '[data-item-id]',
+    '[data-testid*="product"]',
+    '[class*="product"]',
+    '[class*="Product"]'
+  ];
+
+  // If any of the product selectors is found, consider it a product page
+  return productSelectors.some(selector => document.querySelector(selector) !== null);
 }
 
 // Retry extraction with backoff
@@ -98,24 +133,11 @@ function scheduleRetry() {
   }
 }
 
-// Determine initial delay based on site
-function getInitialDelay() {
-  const url = window.location.href;
-  
-  // QFC seems to need more time to load
-  if (url.includes('qfc.com')) {
-    return 3000; // 3 seconds for QFC
-  }
-  
-  // Default delay for other sites
-  return 1500;
-}
-
-// Initial extraction with site-specific delay
+// Initial extraction with delay
 setTimeout(() => {
   console.log('AstuteAnaconda Product Extractor: Initial extraction');
   extractProductsFromPage();
-}, getInitialDelay());
+}, 2000); // Use a consistent 2 second delay for all sites
 
 // Reset retry counter on new page
 window.addEventListener('beforeunload', () => {
@@ -135,6 +157,6 @@ new MutationObserver(() => {
     setTimeout(() => {
       console.log('Extracting products after navigation');
       extractProductsFromPage();
-    }, getInitialDelay());
+    }, 2000);
   }
 }).observe(document, {subtree: true, childList: true});

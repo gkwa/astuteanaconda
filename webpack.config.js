@@ -12,7 +12,8 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     clean: true
   },
-  mode: 'production',
+  mode: 'development',  // Changed from production to development for better debugging
+  devtool: 'inline-source-map',  // Changed to inline-source-map to avoid external map files
   plugins: [
     new CopyPlugin({
       patterns: [
