@@ -1,30 +1,37 @@
-// Wait for page to fully load
-window.addEventListener('load', function() {
-  console.log('AstuteAnaconda Product Extractor: Page loaded');
+// Function to extract products
+function extractProductsFromPage() {
+  console.log('Checking for SocialSparrow API...');
   
-  // Add a small delay to ensure any dynamic content has loaded
-  setTimeout(() => {
-    // Check if SocialSparrow is available
-    if (typeof SocialSparrow !== 'undefined') {
-      console.log('SocialSparrow API detected on page');
+  // Check if SocialSparrow is available
+  if (typeof SocialSparrow !== 'undefined') {
+    console.log('SocialSparrow API detected on page');
+    
+    try {
+      // Extract products
+      const products = SocialSparrow.extractProducts();
       
-      try {
-        // Extract products
-        const products = SocialSparrow.extractProducts();
-        
-        // Log products as table
-        console.log('Products extracted from page:');
-        console.table(products);
-      } catch (error) {
-        console.error('Error extracting products:', error);
-      }
-    } else {
-      console.log('SocialSparrow API not found on this page');
+      // Log products as table
+      console.log('Products extracted from page:');
+      console.table(products);
+      
+      return products;
+    } catch (error) {
+      console.error('Error extracting products:', error);
     }
-  }, 1500); // 1.5 second delay
-});
+  } else {
+    console.log('SocialSparrow API not found on this page');
+  }
+  
+  return null;
+}
 
-// Listen for page state updates (for single-page applications)
+// Initial extraction with delay to ensure page is loaded
+setTimeout(() => {
+  console.log('AstuteAnaconda Product Extractor: Initial extraction');
+  extractProductsFromPage();
+}, 1500);
+
+// Track URL changes for single-page applications
 let lastUrl = location.href;
 new MutationObserver(() => {
   const url = location.href;
@@ -34,15 +41,8 @@ new MutationObserver(() => {
     
     // Wait a bit for the new page content to load
     setTimeout(() => {
-      if (typeof SocialSparrow !== 'undefined') {
-        try {
-          const products = SocialSparrow.extractProducts();
-          console.log('Products extracted after page navigation:');
-          console.table(products);
-        } catch (error) {
-          console.error('Error extracting products after navigation:', error);
-        }
-      }
+      console.log('Extracting products after navigation');
+      extractProductsFromPage();
     }, 2000);
   }
 }).observe(document, {subtree: true, childList: true});
