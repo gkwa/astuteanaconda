@@ -1,4 +1,4 @@
-# Justfile for SocialSparrow Chrome Extension
+# Justfile for AstuteAnaconda Chrome Extension
 
 # Default recipe
 default:
@@ -24,7 +24,7 @@ clean:
 # Build and package the extension
 package: clean build
     mkdir -p packages
-    cd dist && zip -r ../packages/socialsparrow-product-extractor.zip .
+    cd dist && zip -r ../packages/astuteanaconda-product-extractor.zip .
 
 # Set up the development environment
 setup: install build

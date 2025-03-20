@@ -1,19 +1,10 @@
 {
-  "name": "socialsparrow-product-extractor",
+  "name": "astuteanaconda-product-extractor",
   "version": "1.0.0",
-  "description": "Chrome extension to extract products using SocialSparrow",
+  "description": "Chrome extension to extract products using SocialSparrow API",
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "watch": "webpack --watch --config webpack.config.js",
     "lint": "eslint src/**/*.js"
-  },
-  "dependencies": {
-    "socialsparrow": "0.3.4"
-  },
-  "devDependencies": {
-    "copy-webpack-plugin": "13.0.0",
-    "eslint": "9.22.0",
-    "webpack": "5.98.0",
-    "webpack-cli": "6.0.1"
   }
 }

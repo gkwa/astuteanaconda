@@ -1,4 +1,4 @@
-# SocialSparrow Product Extractor
+# AstuteAnaconda Product Extractor
 
 A Chrome extension that uses the SocialSparrow package to extract product information from web pages.
 

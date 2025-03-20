@@ -26,9 +26,9 @@ function extractProducts() {
     console.table(products);
     
     // Optionally copy to clipboard as well
-    SocialSparrow.extractProductsToClipboard()
-      .then(data => console.log("Products copied to clipboard:", data))
-      .catch(error => console.error("Error copying to clipboard:", error));
+    // SocialSparrow.extractProductsToClipboard()
+    //   .then(data => console.log("Products copied to clipboard:", data))
+    //   .catch(error => console.error("Error copying to clipboard:", error));
   } catch (error) {
     console.error("Error extracting products:", error);
   }

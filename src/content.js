@@ -1,6 +1,6 @@
 // Wait for page to fully load
 window.addEventListener('load', function() {
-  console.log('SocialSparrow Product Extractor: Page loaded');
+  console.log('AstuteAnaconda Product Extractor: Page loaded');
   
   // Add a small delay to ensure any dynamic content has loaded
   setTimeout(() => {

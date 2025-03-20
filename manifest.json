@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SocialSparrow Product Extractor",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Extract products from web pages using SocialSparrow API",
   "permissions": ["activeTab", "scripting"],
   "action": {
