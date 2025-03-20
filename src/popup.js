@@ -22,8 +22,16 @@ function extractProducts() {
     // Extract products using SocialSparrow API
     const products = SocialSparrow.extractProducts();
     
+    // Create a flattened version of the products for better table display
+    const flattenedProducts = products.map(product => ({
+      name: product.name || 'N/A',
+      brand: product.brand || 'N/A',
+      price: product.price || 'N/A',
+      url: product.url || 'N/A'
+    }));
+    
     // Log products as table in console
-    console.table(products);
+    console.table(flattenedProducts);
     
     // Optionally copy to clipboard as well
     SocialSparrow.extractProductsToClipboard()
