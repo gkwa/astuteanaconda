@@ -6,8 +6,7 @@ default:
 
 # Install dependencies
 install:
-    pnpm add socialsparrow
-    pnpm add -D webpack webpack-cli copy-webpack-plugin eslint
+    pnpm install
 
 # Build the extension
 build:
@@ -33,3 +32,4 @@ setup: install build
 # Run all checks
 check:
     pnpm run lint
+
