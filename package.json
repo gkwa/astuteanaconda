@@ -1,5 +1,5 @@
 {
-  "name": "astuteanaconda-product-extractor",
+  "name": "astuteanaconda",
   "version": "1.0.0",
   "description": "Chrome extension to extract products using SocialSparrow API",
   "type": "module",

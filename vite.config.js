@@ -6,6 +6,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    minify: 'terser',
+    terserOptions: {
+      mangle: false,  // Disable variable name mangling
+      compress: {
+        keep_fnames: true,
+      },
+      format: {
+        comments: false,
+      }
+    },
     rollupOptions: {
       input: {
         content: resolve(__dirname, 'src/content.js'),
@@ -29,4 +39,3 @@ export default defineConfig({
     })
   ]
 });
-
