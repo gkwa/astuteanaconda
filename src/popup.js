@@ -22,16 +22,9 @@ function extractProducts() {
     // Extract products using SocialSparrow API
     const products = SocialSparrow.extractProducts();
     
-    // Create clean objects using direct object literals
-    const cleanProducts = products.map(product => ({
-      name: (product.name || 'N/A'),
-      brand: (product.brand || 'N/A'),
-      price: (product.price || 'N/A'),
-      url: (product.url || 'N/A')
-    }));
-    
-    // Log products as table with specific columns
-    console.table(cleanProducts, ['name', 'brand', 'price', 'url']);
+    // Log products directly
+    console.log('Products from SocialSparrow API:');
+    console.table(products);
     
     // Optionally copy to clipboard as well
     SocialSparrow.extractProductsToClipboard()
