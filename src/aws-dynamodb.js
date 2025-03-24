@@ -3,103 +3,20 @@
  * Handles sending extracted products to DynamoDB
  */
 
-// Function to send products to DynamoDB
-export async function sendProductsToDynamoDB(products) {
-  if (!products || !Array.isArray(products) || products.length === 0) {
-    console.error("No valid products to send to DynamoDB")
-    return {
-      success: false,
-      message: "No valid products to send",
-    }
-  }
-
-  try {
-    console.log(`Preparing to send ${products.length} products to DynamoDB`)
-
-    // Ensure AWS credentials are available
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-      console.error("AWS credentials not found in environment variables")
-      return {
-        success: false,
-        message: "AWS credentials not found in environment variables",
-      }
-    }
-
-    // Create payload in the format expected by the Lambda function
-    const payload = {
-      products: products.map((product) => ({
-        name: product.name || "Unknown Product",
-        brand: product.brand || "Unknown Brand",
-        url: product.url || "",
-        price: product.price || "",
-        imageUrl: product.imageUrl || "",
-        size: product.size || "N/A",
-        rawTextContent: product.rawTextContent || "",
-        timestamp: new Date().toISOString(),
-      })),
-    }
-
-    // Make the API call to AWS Lambda
-    const response = await fetch(
-      "https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/happyhamster-products-loader/invocations",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Amz-Content-Sha256": "UNSIGNED-PAYLOAD",
-          "X-Amz-Date": new Date()
-            .toISOString()
-            .replace(/[:-]|\.\d{3}/g, "")
-            .replace("T", ""),
-          Authorization: await generateAWSSignature(),
-        },
-        body: JSON.stringify(payload),
-      },
-    )
-
-    if (!response.ok) {
-      console.error("Error sending products to DynamoDB:", await response.text())
-      return {
-        success: false,
-        message: `Error sending products to DynamoDB: ${response.status} ${response.statusText}`,
-      }
-    }
-
-    const result = await response.json()
-    console.log("Successfully sent products to DynamoDB:", result)
-
-    return {
-      success: true,
-      message: `Successfully sent ${products.length} products to DynamoDB`,
-      result,
-    }
-  } catch (error) {
-    console.error("Exception sending products to DynamoDB:", error)
-    return {
-      success: false,
-      message: `Exception sending products to DynamoDB: ${error.message}`,
-      error,
-    }
-  }
-}
-
-// Generate AWS signature for API requests
-async function generateAWSSignature() {
-  // Implementation of AWS Signature v4 would go here
-  // For this implementation, we'll use the AWS SDK in the background
-  // This is a placeholder for the actual signature generation logic
-  return "AWS4-HMAC-SHA256 Credential=ACCESS_KEY/20250324/us-east-1/lambda/aws4_request"
-}
-
-// AWS SDK implementation using AWS-SDK v3
+// Class to interact with DynamoDB
 export class DynamoDBClient {
-  constructor() {
+  constructor(accessKeyId, secretAccessKey) {
     this.region = "us-east-1"
     this.tableName = "happyhamster-products"
+    this.accessKeyId = accessKeyId
+    this.secretAccessKey = secretAccessKey
+    this.initialized = false
   }
 
   // Initialize the AWS SDK with credentials
   async initialize() {
+    if (this.initialized) return true
+
     try {
       // Import AWS SDK modules
       const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb")
@@ -109,12 +26,14 @@ export class DynamoDBClient {
       this.client = new DynamoDBClient({
         region: this.region,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          accessKeyId: this.accessKeyId,
+          secretAccessKey: this.secretAccessKey,
         },
       })
 
       this.docClient = DynamoDBDocumentClient.from(this.client)
+      this.PutCommand = PutCommand
+      this.initialized = true
       console.log("AWS DynamoDB client initialized")
       return true
     } catch (error) {
@@ -123,22 +42,21 @@ export class DynamoDBClient {
     }
   }
 
-  // Send products to DynamoDB using the SDK directly
+  // Send products to DynamoDB
   async sendProducts(products) {
-    if (!this.docClient) {
-      const initialized = await this.initialize()
-      if (!initialized) {
-        return {
-          success: false,
-          message: "Failed to initialize AWS SDK",
-        }
-      }
-    }
-
     if (!products || !Array.isArray(products) || products.length === 0) {
+      console.error("No valid products to send to DynamoDB")
       return {
         success: false,
         message: "No valid products to send",
+      }
+    }
+
+    const initialized = await this.initialize()
+    if (!initialized) {
+      return {
+        success: false,
+        message: "Failed to initialize AWS SDK",
       }
     }
 
@@ -175,7 +93,7 @@ export class DynamoDBClient {
         }
 
         // Send to DynamoDB
-        const command = new PutCommand({
+        const command = new this.PutCommand({
           TableName: this.tableName,
           Item: rawItem,
         })
@@ -214,6 +132,5 @@ export class DynamoDBClient {
 }
 
 export default {
-  sendProductsToDynamoDB,
   DynamoDBClient,
 }

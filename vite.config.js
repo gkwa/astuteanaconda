@@ -11,11 +11,12 @@ export default defineConfig({
       input: {
         content: resolve(__dirname, "src/content.js"),
         popup: resolve(__dirname, "src/popup.js"),
+        background: resolve(__dirname, "src/background.js"),
         socialsparrow: resolve(__dirname, "src/socialsparrow-bundle.js"),
       },
       output: {
         entryFileNames: "[name].bundle.js",
-        chunkFileNames: "[name].bundle.js",
+        chunkFileNames: "[name].chunk.js",
         assetFileNames: "[name].[ext]",
       },
     },
@@ -33,4 +34,15 @@ export default defineConfig({
       ],
     }),
   ],
+  // Disable preload helper in service worker
+  worker: {
+    format: "es",
+  },
+  // Optimize dependencies for service worker
+  optimizeDeps: {
+    include: ["@aws-sdk/client-dynamodb", "@aws-sdk/lib-dynamodb"],
+    esbuildOptions: {
+      target: "es2020",
+    },
+  },
 })

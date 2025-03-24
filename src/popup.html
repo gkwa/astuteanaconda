@@ -64,9 +64,11 @@
   </head>
   <body>
     <h3>AstuteAnaconda Product Extractor</h3>
+    <p>This extension automatically extracts products and sends them to DynamoDB.</p>
+
     <div class="actions">
       <button id="extractBtn">Extract Products</button>
-      <button id="sendToDynamoBtn" disabled>Send to DynamoDB</button>
+      <button id="sendToDynamoBtn">Send to DynamoDB</button>
       <button id="configBtn">Configure AWS</button>
     </div>
 
@@ -74,6 +76,8 @@
 
     <div id="configSection" class="config-section hidden">
       <h4>AWS Configuration</h4>
+      <p>Configure your AWS credentials for DynamoDB access:</p>
+
       <label for="awsAccessKeyId">AWS Access Key ID:</label>
       <input type="text" id="awsAccessKeyId" placeholder="Enter your AWS Access Key ID" />
 

@@ -1,5 +1,3 @@
-import { DynamoDBClient } from "./aws-dynamodb.js"
-
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn")
   const sendToDynamoBtn = document.getElementById("sendToDynamoBtn")
@@ -8,91 +6,70 @@ document.addEventListener("DOMContentLoaded", function () {
   const configSection = document.getElementById("configSection")
   const statusEl = document.getElementById("status")
 
-  let extractedProducts = []
-  let dynamoDBClient = new DynamoDBClient()
+  // Check if AWS credentials are configured
+  chrome.runtime.sendMessage({ type: "GET_AWS_CREDENTIALS_STATUS" }, (response) => {
+    if (response && response.configured) {
+      showStatus(
+        "AWS credentials configured. Products will be automatically sent to DynamoDB.",
+        "success",
+      )
+    } else {
+      showStatus(
+        "Please configure your AWS credentials to enable automatic DynamoDB updates.",
+        "error",
+      )
+      configSection.classList.remove("hidden")
+    }
+  })
 
   // Load saved AWS credentials
   chrome.storage.local.get(["awsAccessKeyId", "awsSecretAccessKey"], function (result) {
     if (result.awsAccessKeyId && result.awsSecretAccessKey) {
       document.getElementById("awsAccessKeyId").value = result.awsAccessKeyId
       document.getElementById("awsSecretAccessKey").value = result.awsSecretAccessKey
-
-      // Set environment variables
-      process.env = process.env || {}
-      process.env.AWS_ACCESS_KEY_ID = result.awsAccessKeyId
-      process.env.AWS_SECRET_ACCESS_KEY = result.awsSecretAccessKey
     }
   })
 
-  // Extract products button
+  // Extract products button - manual trigger
   extractBtn.addEventListener("click", async function () {
     showStatus("Extracting products...", "loading")
-    extractBtn.disabled = true
 
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     chrome.scripting.executeScript(
       {
         target: { tabId: tab.id },
-        function: extractProducts,
+        function: triggerExtraction,
       },
       (results) => {
         if (chrome.runtime.lastError) {
           showStatus(`Error: ${chrome.runtime.lastError.message}`, "error")
-          extractBtn.disabled = false
           return
         }
 
-        const result = results[0].result
-        if (result && Array.isArray(result) && result.length > 0) {
-          extractedProducts = result
-          showStatus(`Found ${result.length} products! Ready to send to DynamoDB.`, "success")
-          sendToDynamoBtn.disabled = false
-        } else {
-          showStatus("No products found or invalid data returned.", "error")
-        }
-
-        extractBtn.disabled = false
+        showStatus("Products extraction triggered. Check console for details.", "success")
       },
     )
   })
 
-  // Send to DynamoDB button
+  // Send to DynamoDB button - manual trigger
   sendToDynamoBtn.addEventListener("click", async function () {
-    if (!extractedProducts || extractedProducts.length === 0) {
-      showStatus("No products to send. Please extract products first.", "error")
-      return
-    }
+    showStatus("Triggering DynamoDB upload...", "loading")
 
-    // Check if AWS credentials are configured
-    chrome.storage.local.get(["awsAccessKeyId", "awsSecretAccessKey"], async function (result) {
-      if (!result.awsAccessKeyId || !result.awsSecretAccessKey) {
-        showStatus("AWS credentials not configured. Please configure them first.", "error")
-        configSection.classList.remove("hidden")
-        return
-      }
-
-      // Set environment variables
-      process.env = process.env || {}
-      process.env.AWS_ACCESS_KEY_ID = result.awsAccessKeyId
-      process.env.AWS_SECRET_ACCESS_KEY = result.awsSecretAccessKey
-
-      sendToDynamoBtn.disabled = true
-      showStatus("Sending products to DynamoDB...", "loading")
-
-      try {
-        const response = await dynamoDBClient.sendProducts(extractedProducts)
-
-        if (response.success) {
-          showStatus(response.message, "success")
-        } else {
-          showStatus(`Error: ${response.message}`, "error")
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        function: triggerDynamoDBUpload,
+      },
+      (results) => {
+        if (chrome.runtime.lastError) {
+          showStatus(`Error: ${chrome.runtime.lastError.message}`, "error")
+          return
         }
-      } catch (error) {
-        showStatus(`Error: ${error.message}`, "error")
-      } finally {
-        sendToDynamoBtn.disabled = false
-      }
-    })
+
+        showStatus("DynamoDB upload triggered. Check console for details.", "success")
+      },
+    )
   })
 
   // Configure AWS button
@@ -110,21 +87,23 @@ document.addEventListener("DOMContentLoaded", function () {
       return
     }
 
-    // Save to chrome.storage
-    chrome.storage.local.set(
+    // Send message to background script to save credentials
+    chrome.runtime.sendMessage(
       {
-        awsAccessKeyId: awsAccessKeyId,
-        awsSecretAccessKey: awsSecretAccessKey,
+        type: "SAVE_AWS_CREDENTIALS",
+        accessKeyId: awsAccessKeyId,
+        secretAccessKey: awsSecretAccessKey,
       },
-      function () {
-        showStatus("AWS credentials saved successfully!", "success")
-
-        // Set environment variables
-        process.env = process.env || {}
-        process.env.AWS_ACCESS_KEY_ID = awsAccessKeyId
-        process.env.AWS_SECRET_ACCESS_KEY = awsSecretAccessKey
-
-        configSection.classList.add("hidden")
+      function (response) {
+        if (response && response.success) {
+          showStatus(
+            "AWS credentials saved successfully! Products will now be automatically sent to DynamoDB.",
+            "success",
+          )
+          configSection.classList.add("hidden")
+        } else {
+          showStatus("Failed to save credentials. Please try again.", "error")
+        }
       },
     )
   })
@@ -137,146 +116,99 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 })
 
-// Function to extract products from the page
-function extractProducts() {
-  console.log("DEBUGGING: Extract button clicked, checking for SocialSparrow...")
-
-  // First check if we have intercepted data
-  if (window._interceptedProductData) {
-    console.log("DEBUGGING: Using intercepted product data")
-    return processProducts(window._interceptedProductData)
-  }
+// Function to manually trigger extraction from the page
+function triggerExtraction() {
+  console.log("DEBUGGING: Manually triggering product extraction")
 
   // Check if SocialSparrow is available
   if (typeof window.SocialSparrow === "undefined") {
     console.error("SocialSparrow is not available on this page.")
-    // Try DOM-based extraction as fallback
-    const domProducts = extractProductsFromDOM()
-    if (domProducts && domProducts.length > 0) {
-      return domProducts
-    } else {
-      console.error("SocialSparrow API not available and couldn't extract products from DOM.")
-      return []
-    }
+    return { success: false, message: "SocialSparrow API not available" }
   }
 
   try {
-    // Check if extractProducts method exists
-    if (typeof window.SocialSparrow.extractProducts !== "function") {
-      console.error("SocialSparrow.extractProducts is not a function")
-      // Try direct access to data if available
-      if (window._socialsparrow && window._socialsparrow.products) {
-        console.log("DEBUGGING: Found products directly in _socialsparrow")
-        return window._socialsparrow.products
+    if (typeof window.SocialSparrow.extractProducts === "function") {
+      const products = window.SocialSparrow.extractProducts()
+
+      // Check if we got valid products
+      if (
+        products &&
+        (Array.isArray(products) ||
+          (typeof products === "object" && (products.products || products.items)))
+      ) {
+        console.log("DEBUGGING: Products extracted successfully")
+
+        // Process products and send them to background script
+        let productArray = Array.isArray(products)
+          ? products
+          : products.products || products.items || []
+
+        if (productArray.length > 0) {
+          // Send products to background for DynamoDB processing
+          chrome.runtime.sendMessage({
+            type: "PRODUCTS_EXTRACTED",
+            products: productArray,
+          })
+
+          return {
+            success: true,
+            message: `Successfully extracted ${productArray.length} products`,
+          }
+        }
       }
-      return []
     }
 
-    console.log("DEBUGGING: Calling SocialSparrow.extractProducts()")
-    // Extract products using SocialSparrow API
-    const products = window.SocialSparrow.extractProducts()
-    console.log("DEBUGGING: extractProducts() returned:", products)
-
-    // Check if products is undefined or null
-    if (products === undefined || products === null) {
-      console.error("SocialSparrow.extractProducts() returned undefined or null")
-      // Try DOM-based extraction as fallback
-      const domProducts = extractProductsFromDOM()
-      if (domProducts && domProducts.length > 0) {
-        return domProducts
-      } else {
-        console.error("SocialSparrow returned no data and couldn't extract products from DOM.")
-        return []
-      }
-    }
-
-    return processProducts(products)
+    return { success: false, message: "Failed to extract products" }
   } catch (error) {
     console.error("Error extracting products:", error)
-    return []
+    return { success: false, message: `Error: ${error.message}` }
   }
 }
 
-// Process products into a standard format
-function processProducts(productsData) {
-  // Handle different product formats
-  let processedProducts = productsData
+// Function to manually trigger DynamoDB upload for any cached products
+function triggerDynamoDBUpload() {
+  console.log("DEBUGGING: Manually triggering DynamoDB upload")
 
-  // Handle object vs array
-  if (typeof processedProducts === "object" && !Array.isArray(processedProducts)) {
-    if (processedProducts.products && Array.isArray(processedProducts.products)) {
-      processedProducts = processedProducts.products
-    } else if (processedProducts.items && Array.isArray(processedProducts.items)) {
-      processedProducts = processedProducts.items
-    } else {
-      processedProducts = [processedProducts]
+  // Try different sources of product data
+  let products = null
+
+  if (window._socialsparrow && window._socialsparrow.products) {
+    products = window._socialsparrow.products
+  } else if (window._interceptedProductData) {
+    const data = window._interceptedProductData
+    products = data.products || data.items
+  } else if (window._interceptedXHRData) {
+    const data = window._interceptedXHRData
+    products = data.products || data.items
+  } else if (
+    typeof window.SocialSparrow !== "undefined" &&
+    typeof window.SocialSparrow.extractProducts === "function"
+  ) {
+    try {
+      const extractedData = window.SocialSparrow.extractProducts()
+      products = Array.isArray(extractedData)
+        ? extractedData
+        : extractedData.products || extractedData.items
+    } catch (error) {
+      console.error("Error extracting products:", error)
     }
   }
 
-  // Log products directly
-  console.log("Products from SocialSparrow API:")
-  console.table(processedProducts)
-  console.log(
-    `Total products found: ${Array.isArray(processedProducts) ? processedProducts.length : "unknown"}`,
-  )
-
-  return processedProducts
-}
-
-// Function to extract products from DOM as a fallback
-function extractProductsFromDOM() {
-  console.log("DEBUGGING: Attempting to extract products from DOM elements")
-  const products = []
-
-  try {
-    // Look for common product grid containers
-    const productContainers = document.querySelectorAll(
-      '.product-grid, .products-grid, [data-test="product-grid"], [data-test="search-results"]',
-    )
-
-    if (productContainers.length === 0) {
-      console.log("DEBUGGING: No product containers found in DOM")
-      return []
-    }
-
-    // For each container, find product elements
-    productContainers.forEach((container) => {
-      const productElements = container.querySelectorAll(
-        '.product, .product-card, [data-test="product-card"]',
-      )
-
-      console.log(`DEBUGGING: Found ${productElements.length} product elements in container`)
-
-      productElements.forEach((productEl) => {
-        try {
-          // Extract product details
-          const titleEl = productEl.querySelector(
-            '.product-title, .product-name, [data-test="product-title"]',
-          )
-          const priceEl = productEl.querySelector('.product-price, [data-test="product-price"]')
-          const imageEl = productEl.querySelector("img")
-
-          const product = {
-            name: titleEl ? titleEl.textContent.trim() : "",
-            price: priceEl ? priceEl.textContent.trim() : "",
-            imageUrl: imageEl ? imageEl.src : "",
-            url: productEl.querySelector("a") ? productEl.querySelector("a").href : "",
-            timestamp: new Date().toISOString(),
-          }
-
-          // Only add if we have at least a name
-          if (product.name) {
-            products.push(product)
-          }
-        } catch (err) {
-          console.log("DEBUGGING: Error extracting individual product:", err)
-        }
-      })
+  if (products && Array.isArray(products) && products.length > 0) {
+    // Send products to background for DynamoDB processing
+    chrome.runtime.sendMessage({
+      type: "PRODUCTS_EXTRACTED",
+      products: products,
     })
 
-    return products
-  } catch (error) {
-    console.error("DEBUGGING: Error in DOM extraction:", error)
-    return []
+    return {
+      success: true,
+      message: `Sending ${products.length} products to DynamoDB`,
+    }
+  }
+
+  return {
+    success: false,
+    message: "No products found to send to DynamoDB",
   }
 }
