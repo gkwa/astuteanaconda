@@ -1,5 +1,5 @@
-// Import SocialSparrow and make it available globally
 import * as SocialSparrow from 'socialsparrow';
 
-// Expose to global window object
+// Make SocialSparrow available in the global scope
 window.SocialSparrow = SocialSparrow;
+

@@ -20,7 +20,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["socialsparrow.bundle.js"],
+      "resources": ["socialsparrow.bundle.js", "*.map", "*.js.map"],
       "matches": ["<all_urls>"]
     }
   ]
