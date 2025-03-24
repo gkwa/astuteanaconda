@@ -52,57 +52,6 @@ function extractProductsFromPage() {
       return window._socialsparrow.products
     }
 
-    // Specific handling for Trader Joe's site
-    if (window.location.hostname.includes("traderjoes")) {
-      console.log("DEBUGGING: Detected Trader Joe's site, using specific handling")
-      if (products.products && Array.isArray(products.products)) {
-        console.log(`DEBUGGING: Found ${products.products.length} products in products array`)
-        return products.products
-      }
-      
-      // Handle search results format we observed in the logs
-      if (products.totalProducts && products.products) {
-        console.log(`DEBUGGING: Found Trader Joe's search results with ${products.totalProducts} products`)
-        return products.products
-      }
-    }
-
-    // Handle Target.com specifically - check if we can find product data elsewhere
-    if (window.location.hostname.includes("target.com")) {
-      console.log("DEBUGGING: Detected Target site, using specific handling")
-      
-      // Try to find products in the window.__PRELOADED_STATE__ that some SPAs use
-      if (window.__PRELOADED_STATE__ && window.__PRELOADED_STATE__.search) {
-        const targetProducts = window.__PRELOADED_STATE__.search.products || [];
-        if (targetProducts.length > 0) {
-          console.log(`DEBUGGING: Found ${targetProducts.length} products in __PRELOADED_STATE__`)
-          return targetProducts;
-        }
-      }
-      
-      // Try to find products in any global variables that might contain them
-      const potentialGlobals = ['__INITIAL_DATA__', '__INITIAL_STATE__', '__REDUX_STATE__', 'window.dataLayer'];
-      for (const globalVar of potentialGlobals) {
-        try {
-          const data = eval(globalVar);
-          if (data && data.products && Array.isArray(data.products) && data.products.length > 0) {
-            console.log(`DEBUGGING: Found ${data.products.length} products in ${globalVar}`)
-            return data.products;
-          }
-        } catch (e) {
-          // Skip if global variable doesn't exist
-        }
-      }
-      
-      // Try to extract product data from the DOM if API failed
-      console.log("DEBUGGING: Attempting DOM-based product extraction as fallback")
-      const domProducts = extractProductsFromDOM();
-      if (domProducts && domProducts.length > 0) {
-        console.log(`DEBUGGING: Extracted ${domProducts.length} products from DOM`)
-        return domProducts;
-      }
-    }
-
     // Handle the case where products is an object but not an array
     let productArray = []
     if (typeof products === "object" && !Array.isArray(products)) {

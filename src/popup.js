@@ -79,15 +79,6 @@ function displayProducts(productsData) {
   // Handle different product formats
   let processedProducts = productsData;
   
-  // Handle Trader Joe's site
-  if (window.location.hostname.includes("traderjoes")) {
-    console.log("DEBUGGING: Detected Trader Joe's site")
-    if (productsData.products && Array.isArray(productsData.products)) {
-      processedProducts = productsData.products
-      console.log(`DEBUGGING: Found ${processedProducts.length} products in Trader Joe's format`)
-    }
-  }
-  
   // Handle object vs array
   if (typeof processedProducts === "object" && !Array.isArray(processedProducts)) {
     if (processedProducts.products && Array.isArray(processedProducts.products)) {
