@@ -1,7 +1,6 @@
 import { defineConfig } from "vite"
 import { resolve } from "path"
 import { viteStaticCopy } from "vite-plugin-static-copy"
-
 export default defineConfig({
   build: {
     outDir: "dist",
@@ -12,6 +11,7 @@ export default defineConfig({
         content: resolve(__dirname, "src/content.js"),
         popup: resolve(__dirname, "src/popup.js"),
         socialsparrow: resolve(__dirname, "src/socialsparrow-bundle.js"),
+        background: resolve(__dirname, "background.js"),
       },
       output: {
         entryFileNames: "[name].bundle.js",
