@@ -29,6 +29,9 @@ function extractProductsFromPage() {
     // Extract products using SocialSparrow API
     const products = window.SocialSparrow.extractProducts()
     console.log("DEBUGGING: extractProducts() returned:", products)
+    
+    // Print full JSON for debugging
+    console.log("DEBUGGING: Full product JSON:", JSON.stringify(products, null, 2))
 
     // Log the current site
     console.log(`Current site: ${window.location.hostname}`)
@@ -41,6 +44,21 @@ function extractProductsFromPage() {
 
     // Log the product return type for debugging
     console.log(`DEBUGGING: Product return type: ${typeof products}`)
+
+    // Specific handling for Trader Joe's site
+    if (window.location.hostname.includes("traderjoes")) {
+      console.log("DEBUGGING: Detected Trader Joe's site, using specific handling")
+      if (products.products && Array.isArray(products.products)) {
+        console.log(`DEBUGGING: Found ${products.products.length} products in products array`)
+        return products.products
+      }
+      
+      // Handle search results format we observed in the logs
+      if (products.totalProducts && products.products) {
+        console.log(`DEBUGGING: Found Trader Joe's search results with ${products.totalProducts} products`)
+        return products.products
+      }
+    }
 
     // Handle the case where products is an object but not an array
     let productArray = []
@@ -56,6 +74,10 @@ function extractProductsFromPage() {
         // Try to get products from a "products" property
         productArray = products.products
         console.log("DEBUGGING: Found products in products property")
+      } else if (products.searchTerm && products.products) {
+        // Special case for search results format
+        productArray = products.products
+        console.log(`DEBUGGING: Found search results for "${products.searchTerm}" with ${productArray.length} products`)
       } else {
         // Try to convert the object to an array if it has numeric keys
         const keys = Object.keys(products)
@@ -66,8 +88,10 @@ function extractProductsFromPage() {
           // Last resort: check each property to see if it looks like a product
           for (const key in products) {
             if (typeof products[key] === "object" && products[key] !== null) {
-              productArray.push(products[key])
-              console.log(`DEBUGGING: Added object property ${key} to products array`)
+              if (products[key].name || products[key].title || products[key].productName) {
+                productArray.push(products[key])
+                console.log(`DEBUGGING: Added object property ${key} to products array`)
+              }
             }
           }
           console.log("DEBUGGING: Extracted potential product objects from properties")
@@ -98,8 +122,8 @@ function extractProductsFromPage() {
   }
 }
 
-// Add this function to check and wait for SocialSparrow to load
-function waitForSocialSparrow(maxAttempts = 10, interval = 1000) {
+// Wait longer before initial extraction
+function waitForSocialSparrow(maxAttempts = 15, interval = 1000) {
   console.log("DEBUGGING: Starting waitForSocialSparrow")
   return new Promise((resolve, reject) => {
     let attempts = 0
@@ -110,7 +134,19 @@ function waitForSocialSparrow(maxAttempts = 10, interval = 1000) {
 
       if (typeof window.SocialSparrow !== "undefined") {
         console.log("DEBUGGING: SocialSparrow API loaded successfully")
-        resolve(window.SocialSparrow)
+        // Check if it's fully initialized
+        if (typeof window.SocialSparrow.extractProducts === "function") {
+          console.log("DEBUGGING: SocialSparrow API methods ready")
+          // Wait a bit longer to ensure page content is loaded
+          setTimeout(() => resolve(window.SocialSparrow), 500)
+        } else {
+          console.log("DEBUGGING: SocialSparrow API found but methods not ready yet")
+          if (attempts >= maxAttempts) {
+            reject(new Error("SocialSparrow API methods not available after maximum attempts"))
+          } else {
+            setTimeout(checkSocialSparrow, interval)
+          }
+        }
       } else if (attempts >= maxAttempts) {
         console.error("DEBUGGING: SocialSparrow API failed to load after maximum attempts")
         reject(new Error("SocialSparrow API not available"))
@@ -136,7 +172,7 @@ setTimeout(() => {
     .catch((error) => {
       console.error("DEBUGGING: Failed to load SocialSparrow:", error)
     })
-}, 1000)
+}, 2000)  // Wait 2 seconds before starting
 
 // Track URL changes for single-page applications
 console.log("DEBUGGING: Setting up MutationObserver for URL changes")
@@ -155,7 +191,7 @@ new MutationObserver(() => {
         .catch((error) =>
           console.error("DEBUGGING: Failed to load SocialSparrow after navigation:", error),
         )
-    }, 2000)
+    }, 3000)  // Increased wait time to 3 seconds
   }
 }).observe(document, { subtree: true, childList: true })
 
