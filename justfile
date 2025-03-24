@@ -1,3 +1,6 @@
+# Justfile for AstuteAnaconda Chrome Extension
+
+# Default recipe
 default:
     @just --list
 
@@ -5,29 +8,27 @@ default:
 install:
     pnpm install
 
-# Start development server
-dev:
-    pnpm run dev
-
-# Build project for production
+# Build the extension
 build:
     pnpm run build
 
-# Preview production build
-preview:
-    pnpm run preview
+# Watch for changes and rebuild
+watch:
+    pnpm run watch
 
-# Clean dist directory
+# Clean build artifacts
 clean:
     rm -rf dist
 
-# Initialize a new Vite project with pnpm
-init:
-    pnpm create vite@latest . --template vanilla
-    @echo "Project initialized. Run 'just install' to install dependencies."
+# Build and package the extension
+package: clean build
+    mkdir -p packages
+    cd dist && zip -r ../packages/astuteanaconda-product-extractor.zip .
 
-# Bundle and copy to clipboard for Chrome DevTools
-bundle-for-devtools:
-    pnpm run build
-    cat dist/assets/index-*.js | pbcopy || cat dist/assets/index-*.js | xclip -selection clipboard
-    @echo "Bundled JS copied to clipboard. Paste it into Chrome DevTools console or snippets."
+# Set up the development environment
+setup: install build
+    @echo "Extension built successfully. Load the 'dist' folder in Chrome extensions page."
+
+# Run all checks
+check:
+    pnpm run lint

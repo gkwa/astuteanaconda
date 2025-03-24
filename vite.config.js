@@ -1,25 +1,36 @@
 import { defineConfig } from "vite"
 import { resolve } from "path"
+import { viteStaticCopy } from "vite-plugin-static-copy"
 
 export default defineConfig({
   build: {
-    sourcemap: true, // Enable source maps
-    lib: {
-      entry: resolve(__dirname, "src/index.js"),
-      name: "SocialSparrow",
-      fileName: "index",
-    },
+    outDir: "dist",
+    sourcemap: true,
+    minify: "esbuild",
     rollupOptions: {
-      output: {
-        format: "es",
+      input: {
+        content: resolve(__dirname, "src/content.js"),
+        popup: resolve(__dirname, "src/popup.js"),
+        socialsparrow: resolve(__dirname, "src/socialsparrow-bundle.js"),
       },
-    },
-    target: "es2015",
-    minify: "terser",
-    terserOptions: {
-      mangle: {
-        keep_classnames: true,
+      output: {
+        entryFileNames: "[name].bundle.js",
+        chunkFileNames: "[name].bundle.js",
+        assetFileNames: "[name].[ext]",
       },
     },
   },
+  esbuild: {
+    keepNames: true,
+    minifyIdentifiers: false,
+  },
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        { src: "src/manifest.json", dest: "" },
+        { src: "src/popup.html", dest: "" },
+        { src: "icons", dest: "" },
+      ],
+    }),
+  ],
 })
