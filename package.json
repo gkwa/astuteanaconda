@@ -1,24 +1,33 @@
 {
-  "name": "astuteanaconda",
-  "version": "1.0.0",
-  "description": "Chrome extension to extract products using SocialSparrow API",
+  "name": "socialsparrow",
+  "version": "0.3.8",
+  "description": "A utility for extracting product information from e-commerce websites",
   "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "dist/*.map"
+  ],
   "scripts": {
-    "dev": "vite",
+    "release": "standard-version && pnpm publish",
     "build": "vite build",
-    "watch": "vite build --watch",
-    "lint": "eslint src/**/*.js"
+    "prepublishOnly": "pnpm run build"
   },
+  "keywords": [
+    "e-commerce",
+    "product",
+    "extraction",
+    "scraping"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "devDependencies": {
-    "eslint": "^9.23.0",
-    "vite": "^5.4.15",
-    "vite-plugin-static-copy": "^1.0.6"
-  },
-  "dependencies": {
-    "socialsparrow": "^0.3.8"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"],
-    "ignoredBuiltDependencies": ["esbuild"]
+    "standard-version": "9.5.0",
+    "terser": "5.39.0",
+    "vite": "^6.2.0"
   }
 }
