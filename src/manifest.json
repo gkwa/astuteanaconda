@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "AstuteAnaconda Product Extractor",
   "version": "1.0.0",
-  "description": "Extract products from web pages using SocialSparrow API",
-  "permissions": ["activeTab", "scripting"],
+  "description": "Extract products from web pages using SocialSparrow API and send to DynamoDB",
+  "permissions": ["activeTab", "scripting", "storage"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

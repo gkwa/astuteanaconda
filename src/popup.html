@@ -4,7 +4,7 @@
     <title>AstuteAnaconda Product Extractor</title>
     <style>
       body {
-        width: 300px;
+        width: 350px;
         padding: 10px;
         font-family: Arial, sans-serif;
       }
@@ -21,12 +21,68 @@
       button:hover {
         background-color: #3367d6;
       }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .status {
+        margin-top: 10px;
+        padding: 8px;
+        border-radius: 4px;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .loading {
+        background-color: #e2f0fb;
+        color: #0c5460;
+      }
+      .hidden {
+        display: none;
+      }
+      .config-section {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+      .config-section label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .config-section input[type="text"] {
+        width: 100%;
+        padding: 5px;
+        margin-bottom: 10px;
+      }
     </style>
   </head>
   <body>
     <h3>AstuteAnaconda Product Extractor</h3>
-    <p>Click the button below to extract products from the current page:</p>
-    <button id="extractBtn">Extract Products</button>
+    <div class="actions">
+      <button id="extractBtn">Extract Products</button>
+      <button id="sendToDynamoBtn" disabled>Send to DynamoDB</button>
+      <button id="configBtn">Configure AWS</button>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+
+    <div id="configSection" class="config-section hidden">
+      <h4>AWS Configuration</h4>
+      <label for="awsAccessKeyId">AWS Access Key ID:</label>
+      <input type="text" id="awsAccessKeyId" placeholder="Enter your AWS Access Key ID" />
+
+      <label for="awsSecretAccessKey">AWS Secret Access Key:</label>
+      <input type="text" id="awsSecretAccessKey" placeholder="Enter your AWS Secret Access Key" />
+
+      <button id="saveConfigBtn">Save Configuration</button>
+    </div>
+
     <script src="popup.bundle.js"></script>
   </body>
 </html>

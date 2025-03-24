@@ -1,24 +1,150 @@
+import { DynamoDBClient } from "./aws-dynamodb.js"
+
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn")
+  const sendToDynamoBtn = document.getElementById("sendToDynamoBtn")
+  const configBtn = document.getElementById("configBtn")
+  const saveConfigBtn = document.getElementById("saveConfigBtn")
+  const configSection = document.getElementById("configSection")
+  const statusEl = document.getElementById("status")
 
+  let extractedProducts = []
+  let dynamoDBClient = new DynamoDBClient()
+
+  // Load saved AWS credentials
+  chrome.storage.local.get(["awsAccessKeyId", "awsSecretAccessKey"], function (result) {
+    if (result.awsAccessKeyId && result.awsSecretAccessKey) {
+      document.getElementById("awsAccessKeyId").value = result.awsAccessKeyId
+      document.getElementById("awsSecretAccessKey").value = result.awsSecretAccessKey
+
+      // Set environment variables
+      process.env = process.env || {}
+      process.env.AWS_ACCESS_KEY_ID = result.awsAccessKeyId
+      process.env.AWS_SECRET_ACCESS_KEY = result.awsSecretAccessKey
+    }
+  })
+
+  // Extract products button
   extractBtn.addEventListener("click", async function () {
-    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    showStatus("Extracting products...", "loading")
+    extractBtn.disabled = true
 
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: extractProducts,
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        function: extractProducts,
+      },
+      (results) => {
+        if (chrome.runtime.lastError) {
+          showStatus(`Error: ${chrome.runtime.lastError.message}`, "error")
+          extractBtn.disabled = false
+          return
+        }
+
+        const result = results[0].result
+        if (result && Array.isArray(result) && result.length > 0) {
+          extractedProducts = result
+          showStatus(`Found ${result.length} products! Ready to send to DynamoDB.`, "success")
+          sendToDynamoBtn.disabled = false
+        } else {
+          showStatus("No products found or invalid data returned.", "error")
+        }
+
+        extractBtn.disabled = false
+      },
+    )
+  })
+
+  // Send to DynamoDB button
+  sendToDynamoBtn.addEventListener("click", async function () {
+    if (!extractedProducts || extractedProducts.length === 0) {
+      showStatus("No products to send. Please extract products first.", "error")
+      return
+    }
+
+    // Check if AWS credentials are configured
+    chrome.storage.local.get(["awsAccessKeyId", "awsSecretAccessKey"], async function (result) {
+      if (!result.awsAccessKeyId || !result.awsSecretAccessKey) {
+        showStatus("AWS credentials not configured. Please configure them first.", "error")
+        configSection.classList.remove("hidden")
+        return
+      }
+
+      // Set environment variables
+      process.env = process.env || {}
+      process.env.AWS_ACCESS_KEY_ID = result.awsAccessKeyId
+      process.env.AWS_SECRET_ACCESS_KEY = result.awsSecretAccessKey
+
+      sendToDynamoBtn.disabled = true
+      showStatus("Sending products to DynamoDB...", "loading")
+
+      try {
+        const response = await dynamoDBClient.sendProducts(extractedProducts)
+
+        if (response.success) {
+          showStatus(response.message, "success")
+        } else {
+          showStatus(`Error: ${response.message}`, "error")
+        }
+      } catch (error) {
+        showStatus(`Error: ${error.message}`, "error")
+      } finally {
+        sendToDynamoBtn.disabled = false
+      }
     })
   })
+
+  // Configure AWS button
+  configBtn.addEventListener("click", function () {
+    configSection.classList.toggle("hidden")
+  })
+
+  // Save configuration button
+  saveConfigBtn.addEventListener("click", function () {
+    const awsAccessKeyId = document.getElementById("awsAccessKeyId").value.trim()
+    const awsSecretAccessKey = document.getElementById("awsSecretAccessKey").value.trim()
+
+    if (!awsAccessKeyId || !awsSecretAccessKey) {
+      showStatus("Please enter both AWS Access Key ID and Secret Access Key", "error")
+      return
+    }
+
+    // Save to chrome.storage
+    chrome.storage.local.set(
+      {
+        awsAccessKeyId: awsAccessKeyId,
+        awsSecretAccessKey: awsSecretAccessKey,
+      },
+      function () {
+        showStatus("AWS credentials saved successfully!", "success")
+
+        // Set environment variables
+        process.env = process.env || {}
+        process.env.AWS_ACCESS_KEY_ID = awsAccessKeyId
+        process.env.AWS_SECRET_ACCESS_KEY = awsSecretAccessKey
+
+        configSection.classList.add("hidden")
+      },
+    )
+  })
+
+  // Helper function to show status messages
+  function showStatus(message, type) {
+    statusEl.textContent = message
+    statusEl.className = `status ${type}`
+    statusEl.classList.remove("hidden")
+  }
 })
 
+// Function to extract products from the page
 function extractProducts() {
   console.log("DEBUGGING: Extract button clicked, checking for SocialSparrow...")
 
   // First check if we have intercepted data
   if (window._interceptedProductData) {
     console.log("DEBUGGING: Using intercepted product data")
-    displayProducts(window._interceptedProductData)
-    return
+    return processProducts(window._interceptedProductData)
   }
 
   // Check if SocialSparrow is available
@@ -27,11 +153,11 @@ function extractProducts() {
     // Try DOM-based extraction as fallback
     const domProducts = extractProductsFromDOM()
     if (domProducts && domProducts.length > 0) {
-      displayProducts({ products: domProducts })
+      return domProducts
     } else {
-      alert("SocialSparrow API not available and couldn't extract products from DOM.")
+      console.error("SocialSparrow API not available and couldn't extract products from DOM.")
+      return []
     }
-    return
   }
 
   try {
@@ -41,10 +167,9 @@ function extractProducts() {
       // Try direct access to data if available
       if (window._socialsparrow && window._socialsparrow.products) {
         console.log("DEBUGGING: Found products directly in _socialsparrow")
-        displayProducts({ products: window._socialsparrow.products })
-        return
+        return window._socialsparrow.products
       }
-      return
+      return []
     }
 
     console.log("DEBUGGING: Calling SocialSparrow.extractProducts()")
@@ -52,30 +177,28 @@ function extractProducts() {
     const products = window.SocialSparrow.extractProducts()
     console.log("DEBUGGING: extractProducts() returned:", products)
 
-    // Print full JSON for debugging
-    console.log("DEBUGGING: Full product JSON:", JSON.stringify(products, null, 2))
-
     // Check if products is undefined or null
     if (products === undefined || products === null) {
       console.error("SocialSparrow.extractProducts() returned undefined or null")
       // Try DOM-based extraction as fallback
       const domProducts = extractProductsFromDOM()
       if (domProducts && domProducts.length > 0) {
-        displayProducts({ products: domProducts })
+        return domProducts
       } else {
-        alert("SocialSparrow returned no data and couldn't extract products from DOM.")
+        console.error("SocialSparrow returned no data and couldn't extract products from DOM.")
+        return []
       }
-      return
     }
 
-    displayProducts(products)
+    return processProducts(products)
   } catch (error) {
     console.error("Error extracting products:", error)
-    alert("Error extracting products. Check the console for details.")
+    return []
   }
 }
 
-function displayProducts(productsData) {
+// Process products into a standard format
+function processProducts(productsData) {
   // Handle different product formats
   let processedProducts = productsData
 
@@ -97,33 +220,7 @@ function displayProducts(productsData) {
     `Total products found: ${Array.isArray(processedProducts) ? processedProducts.length : "unknown"}`,
   )
 
-  // Display a notification to the user
-  if (Array.isArray(processedProducts) && processedProducts.length > 0) {
-    alert(`Successfully found ${processedProducts.length} products! Check the console for details.`)
-  } else {
-    alert("Product data retrieved but format is unexpected. Check the console for details.")
-  }
-
-  // Optionally copy to clipboard as well
-  if (typeof window.SocialSparrow?.extractProductsToClipboard === "function") {
-    console.log("DEBUGGING: Calling extractProductsToClipboard")
-    window.SocialSparrow.extractProductsToClipboard()
-      .then((data) => console.log("Products copied to clipboard:", data))
-      .catch((error) => console.error("Error copying to clipboard:", error))
-  } else {
-    console.error("SocialSparrow.extractProductsToClipboard is not a function")
-
-    // Manual clipboard copy as fallback
-    try {
-      const jsonStr = JSON.stringify(processedProducts, null, 2)
-      navigator.clipboard
-        .writeText(jsonStr)
-        .then(() => console.log("Products copied to clipboard manually"))
-        .catch((err) => console.error("Error copying to clipboard manually:", err))
-    } catch (e) {
-      console.error("Error in manual clipboard copy:", e)
-    }
-  }
+  return processedProducts
 }
 
 // Function to extract products from DOM as a fallback
@@ -147,6 +244,7 @@ function extractProductsFromDOM() {
       const productElements = container.querySelectorAll(
         '.product, .product-card, [data-test="product-card"]',
       )
+
       console.log(`DEBUGGING: Found ${productElements.length} product elements in container`)
 
       productElements.forEach((productEl) => {
@@ -163,6 +261,7 @@ function extractProductsFromDOM() {
             price: priceEl ? priceEl.textContent.trim() : "",
             imageUrl: imageEl ? imageEl.src : "",
             url: productEl.querySelector("a") ? productEl.querySelector("a").href : "",
+            timestamp: new Date().toISOString(),
           }
 
           // Only add if we have at least a name
