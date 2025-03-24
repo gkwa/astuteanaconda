@@ -32,4 +32,3 @@ setup: install build
 # Run all checks
 check:
     pnpm run lint
-
