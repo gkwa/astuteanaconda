@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function extractProducts() {
   console.log("DEBUGGING: Extract button clicked, checking for SocialSparrow...")
-  
+
   // First check if we have intercepted data
   if (window._interceptedProductData) {
     console.log("DEBUGGING: Using intercepted product data")
@@ -51,7 +51,7 @@ function extractProducts() {
     // Extract products using SocialSparrow API
     const products = window.SocialSparrow.extractProducts()
     console.log("DEBUGGING: extractProducts() returned:", products)
-    
+
     // Print full JSON for debugging
     console.log("DEBUGGING: Full product JSON:", JSON.stringify(products, null, 2))
 
@@ -77,8 +77,8 @@ function extractProducts() {
 
 function displayProducts(productsData) {
   // Handle different product formats
-  let processedProducts = productsData;
-  
+  let processedProducts = productsData
+
   // Handle object vs array
   if (typeof processedProducts === "object" && !Array.isArray(processedProducts)) {
     if (processedProducts.products && Array.isArray(processedProducts.products)) {
@@ -93,7 +93,9 @@ function displayProducts(productsData) {
   // Log products directly
   console.log("Products from SocialSparrow API:")
   console.table(processedProducts)
-  console.log(`Total products found: ${Array.isArray(processedProducts) ? processedProducts.length : "unknown"}`)
+  console.log(
+    `Total products found: ${Array.isArray(processedProducts) ? processedProducts.length : "unknown"}`,
+  )
 
   // Display a notification to the user
   if (Array.isArray(processedProducts) && processedProducts.length > 0) {
@@ -110,13 +112,14 @@ function displayProducts(productsData) {
       .catch((error) => console.error("Error copying to clipboard:", error))
   } else {
     console.error("SocialSparrow.extractProductsToClipboard is not a function")
-    
+
     // Manual clipboard copy as fallback
     try {
       const jsonStr = JSON.stringify(processedProducts, null, 2)
-      navigator.clipboard.writeText(jsonStr)
+      navigator.clipboard
+        .writeText(jsonStr)
         .then(() => console.log("Products copied to clipboard manually"))
-        .catch(err => console.error("Error copying to clipboard manually:", err))
+        .catch((err) => console.error("Error copying to clipboard manually:", err))
     } catch (e) {
       console.error("Error in manual clipboard copy:", e)
     }
@@ -126,49 +129,55 @@ function displayProducts(productsData) {
 // Function to extract products from DOM as a fallback
 function extractProductsFromDOM() {
   console.log("DEBUGGING: Attempting to extract products from DOM elements")
-  const products = [];
-  
+  const products = []
+
   try {
     // Look for common product grid containers
-    const productContainers = document.querySelectorAll('.product-grid, .products-grid, [data-test="product-grid"], [data-test="search-results"]');
-    
+    const productContainers = document.querySelectorAll(
+      '.product-grid, .products-grid, [data-test="product-grid"], [data-test="search-results"]',
+    )
+
     if (productContainers.length === 0) {
-      console.log("DEBUGGING: No product containers found in DOM");
-      return [];
+      console.log("DEBUGGING: No product containers found in DOM")
+      return []
     }
-    
+
     // For each container, find product elements
-    productContainers.forEach(container => {
-      const productElements = container.querySelectorAll('.product, .product-card, [data-test="product-card"]');
-      console.log(`DEBUGGING: Found ${productElements.length} product elements in container`);
-      
-      productElements.forEach(productEl => {
+    productContainers.forEach((container) => {
+      const productElements = container.querySelectorAll(
+        '.product, .product-card, [data-test="product-card"]',
+      )
+      console.log(`DEBUGGING: Found ${productElements.length} product elements in container`)
+
+      productElements.forEach((productEl) => {
         try {
           // Extract product details
-          const titleEl = productEl.querySelector('.product-title, .product-name, [data-test="product-title"]');
-          const priceEl = productEl.querySelector('.product-price, [data-test="product-price"]');
-          const imageEl = productEl.querySelector('img');
-          
+          const titleEl = productEl.querySelector(
+            '.product-title, .product-name, [data-test="product-title"]',
+          )
+          const priceEl = productEl.querySelector('.product-price, [data-test="product-price"]')
+          const imageEl = productEl.querySelector("img")
+
           const product = {
-            name: titleEl ? titleEl.textContent.trim() : '',
-            price: priceEl ? priceEl.textContent.trim() : '',
-            imageUrl: imageEl ? imageEl.src : '',
-            url: productEl.querySelector('a') ? productEl.querySelector('a').href : ''
-          };
-          
+            name: titleEl ? titleEl.textContent.trim() : "",
+            price: priceEl ? priceEl.textContent.trim() : "",
+            imageUrl: imageEl ? imageEl.src : "",
+            url: productEl.querySelector("a") ? productEl.querySelector("a").href : "",
+          }
+
           // Only add if we have at least a name
           if (product.name) {
-            products.push(product);
+            products.push(product)
           }
         } catch (err) {
-          console.log("DEBUGGING: Error extracting individual product:", err);
+          console.log("DEBUGGING: Error extracting individual product:", err)
         }
-      });
-    });
-    
-    return products;
+      })
+    })
+
+    return products
   } catch (error) {
-    console.error("DEBUGGING: Error in DOM extraction:", error);
-    return [];
+    console.error("DEBUGGING: Error in DOM extraction:", error)
+    return []
   }
 }

@@ -29,7 +29,7 @@ function extractProductsFromPage() {
     // Extract products using SocialSparrow API
     const products = window.SocialSparrow.extractProducts()
     console.log("DEBUGGING: extractProducts() returned:", products)
-    
+
     // Print full JSON for debugging
     console.log("DEBUGGING: Full product JSON:", JSON.stringify(products, null, 2))
 
@@ -69,7 +69,9 @@ function extractProductsFromPage() {
       } else if (products.searchTerm && products.products) {
         // Special case for search results format
         productArray = products.products
-        console.log(`DEBUGGING: Found search results for "${products.searchTerm}" with ${productArray.length} products`)
+        console.log(
+          `DEBUGGING: Found search results for "${products.searchTerm}" with ${productArray.length} products`,
+        )
       } else {
         // Try to convert the object to an array if it has numeric keys
         const keys = Object.keys(products)
@@ -117,135 +119,144 @@ function extractProductsFromPage() {
 // Function to extract products from DOM as a fallback
 function extractProductsFromDOM() {
   console.log("DEBUGGING: Attempting to extract products from DOM elements")
-  const products = [];
-  
+  const products = []
+
   try {
     // Look for common product grid containers
-    const productContainers = document.querySelectorAll('.product-grid, .products-grid, [data-test="product-grid"], [data-test="search-results"]');
-    
+    const productContainers = document.querySelectorAll(
+      '.product-grid, .products-grid, [data-test="product-grid"], [data-test="search-results"]',
+    )
+
     if (productContainers.length === 0) {
-      console.log("DEBUGGING: No product containers found in DOM");
-      return [];
+      console.log("DEBUGGING: No product containers found in DOM")
+      return []
     }
-    
+
     // For each container, find product elements
-    productContainers.forEach(container => {
-      const productElements = container.querySelectorAll('.product, .product-card, [data-test="product-card"]');
-      console.log(`DEBUGGING: Found ${productElements.length} product elements in container`);
-      
-      productElements.forEach(productEl => {
+    productContainers.forEach((container) => {
+      const productElements = container.querySelectorAll(
+        '.product, .product-card, [data-test="product-card"]',
+      )
+      console.log(`DEBUGGING: Found ${productElements.length} product elements in container`)
+
+      productElements.forEach((productEl) => {
         try {
           // Extract product details
-          const titleEl = productEl.querySelector('.product-title, .product-name, [data-test="product-title"]');
-          const priceEl = productEl.querySelector('.product-price, [data-test="product-price"]');
-          const imageEl = productEl.querySelector('img');
-          
+          const titleEl = productEl.querySelector(
+            '.product-title, .product-name, [data-test="product-title"]',
+          )
+          const priceEl = productEl.querySelector('.product-price, [data-test="product-price"]')
+          const imageEl = productEl.querySelector("img")
+
           const product = {
-            name: titleEl ? titleEl.textContent.trim() : '',
-            price: priceEl ? priceEl.textContent.trim() : '',
-            imageUrl: imageEl ? imageEl.src : '',
-            url: productEl.querySelector('a') ? productEl.querySelector('a').href : ''
-          };
-          
+            name: titleEl ? titleEl.textContent.trim() : "",
+            price: priceEl ? priceEl.textContent.trim() : "",
+            imageUrl: imageEl ? imageEl.src : "",
+            url: productEl.querySelector("a") ? productEl.querySelector("a").href : "",
+          }
+
           // Only add if we have at least a name
           if (product.name) {
-            products.push(product);
+            products.push(product)
           }
         } catch (err) {
-          console.log("DEBUGGING: Error extracting individual product:", err);
+          console.log("DEBUGGING: Error extracting individual product:", err)
         }
-      });
-    });
-    
-    return products;
+      })
+    })
+
+    return products
   } catch (error) {
-    console.error("DEBUGGING: Error in DOM extraction:", error);
-    return [];
+    console.error("DEBUGGING: Error in DOM extraction:", error)
+    return []
   }
 }
 
 // Function to attempt to intercept API responses
 function setupNetworkInterceptor() {
   console.log("DEBUGGING: Setting up network interceptor")
-  
+
   // Create a proxy for the fetch function
-  const originalFetch = window.fetch;
-  window.fetch = async function(...args) {
-    const response = await originalFetch(...args);
-    
+  const originalFetch = window.fetch
+  window.fetch = async function (...args) {
+    const response = await originalFetch(...args)
+
     // Clone the response so we can read it and still return the original
-    const clone = response.clone();
-    const url = args[0] instanceof Request ? args[0].url : args[0];
-    
+    const clone = response.clone()
+    const url = args[0] instanceof Request ? args[0].url : args[0]
+
     // Check if this is likely a product API endpoint
-    if (url.includes('product') || url.includes('search') || url.includes('api')) {
+    if (url.includes("product") || url.includes("search") || url.includes("api")) {
       try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          clone.json().then(data => {
-            console.log(`DEBUGGING: Intercepted API response from ${url}:`, data);
-            
-            // Try to identify product data in the response
-            if (data && (data.products || data.items)) {
-              console.log("DEBUGGING: Found potential product data in API response");
-              window._interceptedProductData = data;
-            }
-          }).catch(err => {
-            console.log(`DEBUGGING: Error parsing intercepted JSON:`, err);
-          });
-        }
-      } catch (err) {
-        console.log("DEBUGGING: Error in fetch interceptor:", err);
-      }
-    }
-    
-    return response;
-  };
-  
-  // Intercept XHR requests as well
-  const originalXHROpen = XMLHttpRequest.prototype.open;
-  const originalXHRSend = XMLHttpRequest.prototype.send;
-  
-  XMLHttpRequest.prototype.open = function(...args) {
-    this._url = args[1];
-    return originalXHROpen.apply(this, args);
-  };
-  
-  XMLHttpRequest.prototype.send = function(...args) {
-    const xhr = this;
-    const originalOnReadyStateChange = xhr.onreadystatechange;
-    
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        const url = xhr._url;
-        if (url && (url.includes('product') || url.includes('search') || url.includes('api'))) {
-          try {
-            const contentType = xhr.getResponseHeader('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const data = JSON.parse(xhr.responseText);
-              console.log(`DEBUGGING: Intercepted XHR response from ${url}:`, data);
-              
+        const contentType = response.headers.get("content-type")
+        if (contentType && contentType.includes("application/json")) {
+          clone
+            .json()
+            .then((data) => {
+              console.log(`DEBUGGING: Intercepted API response from ${url}:`, data)
+
               // Try to identify product data in the response
               if (data && (data.products || data.items)) {
-                console.log("DEBUGGING: Found potential product data in XHR response");
-                window._interceptedXHRData = data;
+                console.log("DEBUGGING: Found potential product data in API response")
+                window._interceptedProductData = data
+              }
+            })
+            .catch((err) => {
+              console.log(`DEBUGGING: Error parsing intercepted JSON:`, err)
+            })
+        }
+      } catch (err) {
+        console.log("DEBUGGING: Error in fetch interceptor:", err)
+      }
+    }
+
+    return response
+  }
+
+  // Intercept XHR requests as well
+  const originalXHROpen = XMLHttpRequest.prototype.open
+  const originalXHRSend = XMLHttpRequest.prototype.send
+
+  XMLHttpRequest.prototype.open = function (...args) {
+    this._url = args[1]
+    return originalXHROpen.apply(this, args)
+  }
+
+  XMLHttpRequest.prototype.send = function (...args) {
+    const xhr = this
+    const originalOnReadyStateChange = xhr.onreadystatechange
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        const url = xhr._url
+        if (url && (url.includes("product") || url.includes("search") || url.includes("api"))) {
+          try {
+            const contentType = xhr.getResponseHeader("content-type")
+            if (contentType && contentType.includes("application/json")) {
+              const data = JSON.parse(xhr.responseText)
+              console.log(`DEBUGGING: Intercepted XHR response from ${url}:`, data)
+
+              // Try to identify product data in the response
+              if (data && (data.products || data.items)) {
+                console.log("DEBUGGING: Found potential product data in XHR response")
+                window._interceptedXHRData = data
               }
             }
           } catch (err) {
-            console.log("DEBUGGING: Error parsing XHR JSON:", err);
+            console.log("DEBUGGING: Error parsing XHR JSON:", err)
           }
         }
       }
-      
+
       if (originalOnReadyStateChange) {
-        originalOnReadyStateChange.apply(xhr, arguments);
+        originalOnReadyStateChange.apply(xhr, arguments)
       }
-    };
-    
-    return originalXHRSend.apply(xhr, args);
-  };
-  
-  console.log("DEBUGGING: Network interceptors set up successfully");
+    }
+
+    return originalXHRSend.apply(xhr, args)
+  }
+
+  console.log("DEBUGGING: Network interceptors set up successfully")
 }
 
 // Wait longer before initial extraction
@@ -287,7 +298,7 @@ function waitForSocialSparrow(maxAttempts = 15, interval = 1000) {
 }
 
 // Set up network interceptors
-setupNetworkInterceptor();
+setupNetworkInterceptor()
 
 // Initial extraction with retry mechanism
 console.log("DEBUGGING: Content script loaded, setting up initial extraction")
@@ -302,9 +313,9 @@ setTimeout(() => {
       console.error("DEBUGGING: Failed to load SocialSparrow:", error)
       // Try DOM-based extraction as fallback
       console.log("DEBUGGING: Attempting DOM-based extraction as fallback")
-      extractProductsFromDOM();
+      extractProductsFromDOM()
     })
-}, 2000)  // Wait 2 seconds before starting
+}, 2000) // Wait 2 seconds before starting
 
 // Track URL changes for single-page applications
 console.log("DEBUGGING: Setting up MutationObserver for URL changes")
@@ -323,11 +334,10 @@ new MutationObserver(() => {
         .catch((error) => {
           console.error("DEBUGGING: Failed to load SocialSparrow after navigation:", error)
           // Try DOM-based extraction as fallback
-          extractProductsFromDOM();
+          extractProductsFromDOM()
         })
-    }, 3000)  // Increased wait time to 3 seconds
+    }, 3000) // Increased wait time to 3 seconds
   }
 }).observe(document, { subtree: true, childList: true })
 
 console.log("DEBUGGING: Content script initialization complete")
-
