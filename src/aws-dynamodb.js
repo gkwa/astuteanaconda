@@ -42,6 +42,24 @@ export class DynamoDBClient {
     }
   }
 
+  // Helper function to extract search terms from a product
+  prepareSearchTerms(product) {
+    // Extract words from various fields
+    const searchableFields = [
+      product.name || "Unknown Product",
+      product.brand || "Unknown Brand",
+      product.rawTextContent || "",
+      product.size || ""
+    ].filter(Boolean);
+    
+    // Combine, lowercase, remove special chars, and split into words
+    const allText = searchableFields.join(' ').toLowerCase();
+    const words = allText.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(word => word.length > 2);
+    
+    // Remove duplicates and return
+    return [...new Set(words)];
+  }
+
   // Send products to DynamoDB
   async sendProducts(products) {
     if (!products || !Array.isArray(products) || products.length === 0) {
@@ -70,6 +88,14 @@ export class DynamoDBClient {
         const timestamp = product.timestamp || new Date().toISOString()
         const timeComponent = timestamp.split("T")[1].split(".")[0] + "Z"
         const productName = (product.name || "Unknown Product").replace(/\s+/g, "-")
+        
+        // Create standardized datetime for sorting in reverse order
+        const reversibleTimestamp = (10000000000000 - new Date(timestamp).getTime()).toString()
+        
+        // Generate search terms
+        const searchTerms = product.search 
+          ? product.search.toLowerCase().split(/\s+/).filter(word => word.length > 2) 
+          : this.prepareSearchTerms(product)
 
         // Create the RAW stage item following the same format as the Lambda function
         const rawItem = {
@@ -79,6 +105,16 @@ export class DynamoDBClient {
           CreatedAt: timestamp,
           OriginalTimestamp: timestamp,
           ProductName: productName,
+          // Add the GSI attributes
+          GSI1PK: "TIMESTAMP",
+          GSI1SK: reversibleTimestamp,
+          // Add the TimeRange GSI attribute
+          GSI2PK: "TIMERANGE",
+          // Add SearchTerms field for full text searches
+          SearchTerms: searchTerms,
+          // Add GSI3 attributes for search
+          GSI3PK: searchTerms.length > 0 ? `SEARCH#${searchTerms[0]}` : "SEARCH#unknown",
+          GSI3SK: reversibleTimestamp,
           ProductData: {
             name: product.name || "Unknown Product",
             brand: product.brand || "Unknown Brand",
@@ -88,6 +124,7 @@ export class DynamoDBClient {
             size: product.size || "N/A",
             rawTextContent: product.rawTextContent || "",
             timestamp: timestamp,
+            search: product.search || searchTerms.join(' ')
           },
           ExpiryTime: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days TTL
         }
