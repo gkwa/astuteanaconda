@@ -1,6 +1,122 @@
-import { PRODUCT_SCHEMA } from './schema.js';
+// Import AWS SDK modules directly
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb"
 
-// Rest of background.js imports...
+// Initialize state
+let awsCredentials = {
+  accessKeyId: null,
+  secretAccessKey: null,
+}
+
+// Initialize DynamoDB client
+let dynamoDBClient = null
+let documentClient = null
+
+// Function to initialize DynamoDB clients
+function initializeDynamoDBClient() {
+  if (!awsCredentials.accessKeyId || !awsCredentials.secretAccessKey) {
+    return false
+  }
+
+  try {
+    dynamoDBClient = new DynamoDBClient({
+      region: "us-east-1",
+      credentials: {
+        accessKeyId: awsCredentials.accessKeyId,
+        secretAccessKey: awsCredentials.secretAccessKey,
+      },
+    })
+
+    documentClient = DynamoDBDocumentClient.from(dynamoDBClient)
+    return true
+  } catch (error) {
+    console.error("Error initializing DynamoDB client:", error)
+    return false
+  }
+}
+
+// Load AWS credentials on startup
+chrome.storage.local.get(["awsAccessKeyId", "awsSecretAccessKey"], function (result) {
+  if (result.awsAccessKeyId && result.awsSecretAccessKey) {
+    awsCredentials.accessKeyId = result.awsAccessKeyId
+    awsCredentials.secretAccessKey = result.awsSecretAccessKey
+    console.log("AWS credentials loaded from storage")
+
+    // Initialize DynamoDB client
+    initializeDynamoDBClient()
+  }
+})
+
+// Listen for messages from content script or popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "PRODUCTS_EXTRACTED") {
+    console.log(`Received ${message.products.length} products from content script`)
+
+    // Auto-send to DynamoDB if credentials are available
+    if (awsCredentials.accessKeyId && awsCredentials.secretAccessKey) {
+      // Ensure clients are initialized
+      if (!documentClient) {
+        const initialized = initializeDynamoDBClient()
+        if (!initialized) {
+          console.error("Failed to initialize DynamoDB client")
+          sendResponse({ received: true, error: "Failed to initialize DynamoDB client" })
+          return true
+        }
+      }
+
+      // Send products to DynamoDB
+      sendProductsToDynamoDB(message.products).then((result) => {
+        console.log("Auto-send to DynamoDB result:", result)
+        // Notify content script of the result
+        if (sender.tab) {
+          chrome.tabs.sendMessage(sender.tab.id, {
+            type: "DYNAMODB_RESULT",
+            success: result.success,
+            message: result.message,
+          })
+        }
+      })
+    }
+
+    // Always acknowledge receipt
+    sendResponse({ received: true })
+    return true // Keep the message channel open for async response
+  }
+
+  if (message.type === "SAVE_AWS_CREDENTIALS") {
+    // Save credentials
+    awsCredentials.accessKeyId = message.accessKeyId
+    awsCredentials.secretAccessKey = message.secretAccessKey
+
+    // Store in chrome.storage
+    chrome.storage.local.set(
+      {
+        awsAccessKeyId: message.accessKeyId,
+        awsSecretAccessKey: message.secretAccessKey,
+      },
+      () => {
+        console.log("AWS credentials saved to storage")
+
+        // Re-initialize DynamoDB client with new credentials
+        const initialized = initializeDynamoDBClient()
+
+        sendResponse({
+          success: true,
+          clientInitialized: initialized,
+        })
+      },
+    )
+
+    return true // Keep the message channel open for async response
+  }
+
+  if (message.type === "GET_AWS_CREDENTIALS_STATUS") {
+    sendResponse({
+      configured: !!(awsCredentials.accessKeyId && awsCredentials.secretAccessKey),
+    })
+    return false
+  }
+})
 
 // Function to send products to DynamoDB
 async function sendProductsToDynamoDB(products) {
@@ -19,8 +135,30 @@ async function sendProductsToDynamoDB(products) {
     const results = []
 
     for (const product of products) {
-      // Create DynamoDB item using the shared schema
-      const rawItem = PRODUCT_SCHEMA.createDynamoDBItem(product, currentDate);
+      const timestamp = product.timestamp || new Date().toISOString()
+      const timeComponent = timestamp.split("T")[1].split(".")[0] + "Z"
+      const productName = (product.name || "Unknown Product").replace(/\s+/g, "-")
+
+      // Create the RAW stage item
+      const rawItem = {
+        PK: `STAGE#RAW#${currentDate}`,
+        SK: `${timeComponent}#${productName}`,
+        Stage: "raw",
+        CreatedAt: timestamp,
+        OriginalTimestamp: timestamp,
+        ProductName: productName,
+        ProductData: {
+          name: product.name || "Unknown Product",
+          brand: product.brand || "Unknown Brand",
+          url: product.url || "",
+          price: product.price || "",
+          imageUrl: product.imageUrl || "",
+          size: product.size || "N/A",
+          rawTextContent: product.rawTextContent || "",
+          timestamp: timestamp,
+        },
+        ExpiryTime: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days TTL
+      }
 
       // Send to DynamoDB
       const command = new PutCommand({
@@ -30,15 +168,15 @@ async function sendProductsToDynamoDB(products) {
 
       try {
         const result = await documentClient.send(command)
-        console.log(`Successfully imported: ${rawItem.ProductName}`)
+        console.log(`Successfully imported: ${productName}`)
         results.push({
-          product: rawItem.ProductName,
+          product: productName,
           success: true,
         })
       } catch (itemError) {
-        console.error(`Error importing item ${rawItem.ProductName}:`, itemError)
+        console.error(`Error importing item ${productName}:`, itemError)
         results.push({
-          product: rawItem.ProductName,
+          product: productName,
           success: false,
           error: itemError.message,
         })
@@ -59,5 +197,3 @@ async function sendProductsToDynamoDB(products) {
     }
   }
 }
-
-// Rest of background.js remains the same...

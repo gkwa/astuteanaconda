@@ -13,7 +13,6 @@ export default defineConfig({
         popup: resolve(__dirname, "src/popup.js"),
         background: resolve(__dirname, "src/background.js"),
         socialsparrow: resolve(__dirname, "src/socialsparrow-bundle.js"),
-        schema: resolve(__dirname, "src/schema.js"),
       },
       output: {
         entryFileNames: "[name].bundle.js",

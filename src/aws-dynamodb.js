@@ -1,5 +1,3 @@
-import { PRODUCT_SCHEMA } from './schema.js';
-
 /**
  * AWS DynamoDB integration for AstuteAnaconda
  * Handles sending extracted products to DynamoDB
@@ -69,8 +67,30 @@ export class DynamoDBClient {
       const results = []
 
       for (const product of products) {
-        // Create DynamoDB item using the shared schema
-        const rawItem = PRODUCT_SCHEMA.createDynamoDBItem(product, currentDate);
+        const timestamp = product.timestamp || new Date().toISOString()
+        const timeComponent = timestamp.split("T")[1].split(".")[0] + "Z"
+        const productName = (product.name || "Unknown Product").replace(/\s+/g, "-")
+
+        // Create the RAW stage item following the same format as the Lambda function
+        const rawItem = {
+          PK: `STAGE#RAW#${currentDate}`,
+          SK: `${timeComponent}#${productName}`,
+          Stage: "raw",
+          CreatedAt: timestamp,
+          OriginalTimestamp: timestamp,
+          ProductName: productName,
+          ProductData: {
+            name: product.name || "Unknown Product",
+            brand: product.brand || "Unknown Brand",
+            url: product.url || "",
+            price: product.price || "",
+            imageUrl: product.imageUrl || "",
+            size: product.size || "N/A",
+            rawTextContent: product.rawTextContent || "",
+            timestamp: timestamp,
+          },
+          ExpiryTime: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days TTL
+        }
 
         // Send to DynamoDB
         const command = new this.PutCommand({
@@ -80,15 +100,15 @@ export class DynamoDBClient {
 
         try {
           const result = await this.docClient.send(command)
-          console.log(`Successfully imported: ${rawItem.ProductName}`)
+          console.log(`Successfully imported: ${productName}`)
           results.push({
-            product: rawItem.ProductName,
+            product: productName,
             success: true,
           })
         } catch (itemError) {
-          console.error(`Error importing item ${rawItem.ProductName}:`, itemError)
+          console.error(`Error importing item ${productName}:`, itemError)
           results.push({
-            product: rawItem.ProductName,
+            product: productName,
             success: false,
             error: itemError.message,
           })
