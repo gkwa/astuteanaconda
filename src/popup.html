@@ -36,14 +36,49 @@
         color: red;
         border: 1px solid red;
       }
+      .credentials-section {
+        margin-top: 20px;
+        border-top: 1px solid #ccc;
+        padding-top: 10px;
+      }
+      .form-group {
+        margin-bottom: 10px;
+      }
+      label {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 12px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
     </style>
   </head>
   <body>
     <h3>AstuteAnaconda Product Extractor</h3>
-    <p>Click the button below to extract products from the current page:</p>
+    <p>Extract products from the current page:</p>
     <button id="extractBtn">Extract Products</button>
     <button id="saveToDynamoBtn">Extract & Save to DynamoDB</button>
     <div id="statusMessage"></div>
+
+    <div class="credentials-section">
+      <h4>AWS Credentials</h4>
+      <div class="form-group">
+        <label for="accessKeyId">AWS Access Key ID</label>
+        <input type="text" id="accessKeyId" placeholder="Enter AWS Access Key ID" />
+      </div>
+      <div class="form-group">
+        <label for="secretAccessKey">AWS Secret Access Key</label>
+        <input type="password" id="secretAccessKey" placeholder="Enter AWS Secret Access Key" />
+      </div>
+      <button id="saveCredentialsBtn">Save Credentials</button>
+      <button id="testConnectionBtn">Test Connection</button>
+    </div>
+
     <script src="popup.bundle.js"></script>
   </body>
 </html>

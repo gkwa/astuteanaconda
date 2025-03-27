@@ -1,8 +1,19 @@
+import { saveAWSCredentials } from "./aws-credentials.js"
+import { saveProductsToDynamoDB, testAWSConnectivity } from "./api.js"
+
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn")
   const saveToDynamoBtn = document.getElementById("saveToDynamoBtn")
+  const saveCredentialsBtn = document.getElementById("saveCredentialsBtn")
+  const testConnectionBtn = document.getElementById("testConnectionBtn")
+  const accessKeyIdInput = document.getElementById("accessKeyId")
+  const secretAccessKeyInput = document.getElementById("secretAccessKey")
   const statusMessage = document.getElementById("statusMessage")
 
+  // Load saved credentials if available
+  loadSavedCredentials()
+
+  // Extract products button
   extractBtn.addEventListener("click", async function () {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
 
@@ -12,6 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
     })
   })
 
+  // Save to DynamoDB button
   saveToDynamoBtn.addEventListener("click", async function () {
     showStatus("Extracting and saving products to DynamoDB...", "")
 
@@ -20,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function () {
     chrome.scripting.executeScript(
       {
         target: { tabId: tab.id },
-        function: extractAndSaveToDynamoDB,
+        function: extractAndSaveProductsToDynamoDB,
       },
       (results) => {
         if (chrome.runtime.lastError) {
@@ -28,30 +40,123 @@ document.addEventListener("DOMContentLoaded", function () {
           return
         }
 
-        const result = results[0].result
-        if (result.success) {
-          showStatus(`Successfully saved ${result.count} products to DynamoDB!`, "success")
+        if (results && results[0] && results[0].result) {
+          const result = results[0].result
+          if (result.success) {
+            showStatus(`Successfully saved ${result.count || 0} products to DynamoDB!`, "success")
+          } else {
+            showStatus(`Error: ${result.error || "Unknown error"}`, "error")
+          }
         } else {
-          showStatus(`Error: ${result.error}`, "error")
+          showStatus("Error: No results returned from script execution", "error")
         }
       },
     )
   })
 
+  // Save credentials button
+  saveCredentialsBtn.addEventListener("click", function () {
+    const accessKeyId = accessKeyIdInput.value.trim()
+    const secretAccessKey = secretAccessKeyInput.value.trim()
+
+    if (!accessKeyId || !secretAccessKey) {
+      showStatus("Please enter both AWS Access Key ID and Secret Access Key", "error")
+      return
+    }
+
+    saveAWSCredentials(accessKeyId, secretAccessKey)
+      .then(() => {
+        showStatus("AWS credentials saved successfully!", "success")
+      })
+      .catch((error) => {
+        showStatus(`Error saving credentials: ${error.message}`, "error")
+      })
+  })
+
+  // Test connection button
+  testConnectionBtn.addEventListener("click", async function () {
+    showStatus("Testing AWS DynamoDB connection...", "")
+
+    // First save credentials if they've been entered
+    const accessKeyId = accessKeyIdInput.value.trim()
+    const secretAccessKey = secretAccessKeyInput.value.trim()
+
+    if (accessKeyId && secretAccessKey) {
+      try {
+        await saveAWSCredentials(accessKeyId, secretAccessKey)
+      } catch (error) {
+        showStatus(`Error saving credentials: ${error.message}`, "error")
+        return
+      }
+    }
+
+    // Test the connection
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        function: testAWSConnection,
+      },
+      (results) => {
+        if (chrome.runtime.lastError) {
+          showStatus("Error: " + chrome.runtime.lastError.message, "error")
+          return
+        }
+
+        if (results && results[0] && results[0].result) {
+          const result = results[0].result
+          if (result.success) {
+            showStatus("AWS DynamoDB connection successful!", "success")
+          } else {
+            showStatus(
+              `AWS DynamoDB connection failed: ${result.error || "Unknown error"}`,
+              "error",
+            )
+          }
+        } else {
+          showStatus("Error: No results returned from script execution", "error")
+        }
+      },
+    )
+  })
+
+  // Load saved credentials from storage
+  function loadSavedCredentials() {
+    chrome.storage.local.get(["aws_access_key_id", "aws_secret_access_key"], function (result) {
+      if (result.aws_access_key_id) {
+        accessKeyIdInput.value = result.aws_access_key_id
+      }
+      if (result.aws_secret_access_key) {
+        secretAccessKeyInput.value = result.aws_secret_access_key
+      }
+    })
+  }
+
+  // Show status message
   function showStatus(message, type) {
     statusMessage.textContent = message
-    statusMessage.className = type
+    statusMessage.className = type ? `status ${type}` : "status"
     statusMessage.style.display = "block"
+
+    // Hide success messages after 5 seconds
+    if (type === "success") {
+      setTimeout(() => {
+        statusMessage.style.display = "none"
+      }, 5000)
+    }
   }
 })
 
+// Function to extract products (executed in page context)
 function extractProducts() {
   console.log("DEBUGGING: Extract button clicked, checking for SocialSparrow...")
 
   // First check if we have intercepted data
   if (window._interceptedProductData) {
     console.log("DEBUGGING: Using intercepted product data")
-    displayProducts(window._interceptedProductData)
+    const products = processProductData(window._interceptedProductData)
+    displayProducts(products)
     return
   }
 
@@ -61,7 +166,7 @@ function extractProducts() {
     // Try DOM-based extraction as fallback
     const domProducts = extractProductsFromDOM()
     if (domProducts && domProducts.length > 0) {
-      displayProducts({ products: domProducts })
+      displayProducts(domProducts)
     } else {
       alert("SocialSparrow API not available and couldn't extract products from DOM.")
     }
@@ -75,7 +180,7 @@ function extractProducts() {
       // Try direct access to data if available
       if (window._socialsparrow && window._socialsparrow.products) {
         console.log("DEBUGGING: Found products directly in _socialsparrow")
-        displayProducts({ products: window._socialsparrow.products })
+        displayProducts(window._socialsparrow.products)
         return
       }
       return
@@ -83,25 +188,27 @@ function extractProducts() {
 
     console.log("DEBUGGING: Calling SocialSparrow.extractProducts()")
     // Extract products using SocialSparrow API
-    const products = window.SocialSparrow.extractProducts()
-    console.log("DEBUGGING: extractProducts() returned:", products)
+    const rawProducts = window.SocialSparrow.extractProducts()
+    console.log("DEBUGGING: extractProducts() returned:", rawProducts)
 
     // Print full JSON for debugging
-    console.log("DEBUGGING: Full product JSON:", JSON.stringify(products, null, 2))
+    console.log("DEBUGGING: Full product JSON:", JSON.stringify(rawProducts, null, 2))
 
     // Check if products is undefined or null
-    if (products === undefined || products === null) {
+    if (rawProducts === undefined || rawProducts === null) {
       console.error("SocialSparrow.extractProducts() returned undefined or null")
       // Try DOM-based extraction as fallback
       const domProducts = extractProductsFromDOM()
       if (domProducts && domProducts.length > 0) {
-        displayProducts({ products: domProducts })
+        displayProducts(domProducts)
       } else {
         alert("SocialSparrow returned no data and couldn't extract products from DOM.")
       }
       return
     }
 
+    // Process and display products
+    const products = processProductData(rawProducts)
     displayProducts(products)
   } catch (error) {
     console.error("Error extracting products:", error)
@@ -109,13 +216,15 @@ function extractProducts() {
   }
 }
 
-function extractAndSaveToDynamoDB() {
+// Function to extract and save products to DynamoDB (executed in page context)
+async function extractAndSaveProductsToDynamoDB() {
   console.log("DEBUGGING: Extract and save to DynamoDB button clicked")
 
   // Get products using the existing extraction methods
   let products = []
 
-  // Try intercepted data first
+  // Try different sources for product data
+  // First, try intercepted data
   if (window._interceptedProductData) {
     console.log("DEBUGGING: Using intercepted product data for DynamoDB save")
     products = processProductData(window._interceptedProductData)
@@ -145,19 +254,34 @@ function extractAndSaveToDynamoDB() {
 
   // Save to DynamoDB if we have the function available
   if (typeof window.saveToDynamoDB === "function") {
-    return window
-      .saveToDynamoDB(products)
-      .then((result) => {
-        console.log("DEBUGGING: Products saved to DynamoDB:", result)
-        return { success: true, count: products.length }
-      })
-      .catch((error) => {
-        console.error("DEBUGGING: Error saving products to DynamoDB:", error)
-        return { success: false, error: error.message }
-      })
+    try {
+      const result = await window.saveToDynamoDB(products)
+      console.log("DEBUGGING: Products saved to DynamoDB:", result)
+      return { success: true, count: products.length }
+    } catch (error) {
+      console.error("DEBUGGING: Error saving products to DynamoDB:", error)
+      return { success: false, error: error.message }
+    }
   } else {
     console.error("DEBUGGING: saveToDynamoDB function not available")
     return { success: false, error: "DynamoDB save function not available" }
+  }
+}
+
+// Test AWS connection (executed in page context)
+async function testAWSConnection() {
+  if (typeof window.testAWSConnectivity === "function") {
+    try {
+      const result = await window.testAWSConnectivity()
+      console.log("DEBUGGING: AWS connection test result:", result)
+      return result
+    } catch (error) {
+      console.error("DEBUGGING: AWS connection test error:", error)
+      return { success: false, error: error.message }
+    }
+  } else {
+    console.error("DEBUGGING: testAWSConnectivity function not available")
+    return { success: false, error: "AWS test function not available" }
   }
 }
 
@@ -182,54 +306,28 @@ function processProductData(data) {
   return processedProducts
 }
 
-function displayProducts(productsData) {
-  // Handle different product formats
-  let processedProducts = productsData
-
-  // Handle object vs array
-  if (typeof processedProducts === "object" && !Array.isArray(processedProducts)) {
-    if (processedProducts.products && Array.isArray(processedProducts.products)) {
-      processedProducts = processedProducts.products
-    } else if (processedProducts.items && Array.isArray(processedProducts.items)) {
-      processedProducts = processedProducts.items
-    } else {
-      processedProducts = [processedProducts]
-    }
-  }
-
+function displayProducts(products) {
   // Log products directly
-  console.log("Products from SocialSparrow API:")
-  console.table(processedProducts)
-  console.log(
-    `Total products found: ${Array.isArray(processedProducts) ? processedProducts.length : "unknown"}`,
-  )
+  console.log("Products extracted:")
+  console.table(products)
+  console.log(`Total products found: ${Array.isArray(products) ? products.length : "unknown"}`)
 
   // Display a notification to the user
-  if (Array.isArray(processedProducts) && processedProducts.length > 0) {
-    alert(`Successfully found ${processedProducts.length} products! Check the console for details.`)
+  if (Array.isArray(products) && products.length > 0) {
+    alert(`Successfully found ${products.length} products! Check the console for details.`)
   } else {
     alert("Product data retrieved but format is unexpected. Check the console for details.")
   }
 
-  // Optionally copy to clipboard as well
-  if (typeof window.SocialSparrow?.extractProductsToClipboard === "function") {
-    console.log("DEBUGGING: Calling extractProductsToClipboard")
-    window.SocialSparrow.extractProductsToClipboard()
-      .then((data) => console.log("Products copied to clipboard:", data))
-      .catch((error) => console.error("Error copying to clipboard:", error))
-  } else {
-    console.error("SocialSparrow.extractProductsToClipboard is not a function")
-
-    // Manual clipboard copy as fallback
-    try {
-      const jsonStr = JSON.stringify(processedProducts, null, 2)
-      navigator.clipboard
-        .writeText(jsonStr)
-        .then(() => console.log("Products copied to clipboard manually"))
-        .catch((err) => console.error("Error copying to clipboard manually:", err))
-    } catch (e) {
-      console.error("Error in manual clipboard copy:", e)
-    }
+  // Try to copy to clipboard
+  try {
+    const jsonStr = JSON.stringify(products, null, 2)
+    navigator.clipboard
+      .writeText(jsonStr)
+      .then(() => console.log("Products copied to clipboard"))
+      .catch((err) => console.error("Error copying to clipboard:", err))
+  } catch (e) {
+    console.error("Error in clipboard copy:", e)
   }
 }
 

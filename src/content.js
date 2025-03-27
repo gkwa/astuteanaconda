@@ -1,3 +1,5 @@
+import { saveProductsToDynamoDB, testAWSConnectivity } from "./api.js"
+
 // Function to extract products
 function extractProductsFromPage() {
   console.log("DEBUGGING: Starting extractProductsFromPage function")
@@ -104,16 +106,15 @@ function extractProductsFromPage() {
       console.log("DEBUGGING: Products extracted from page:")
       console.table(productArray)
       console.log(`DEBUGGING: Total products found: ${productArray.length}`)
-
+      
       // Save products to DynamoDB
       if (typeof window.saveToDynamoDB === "function") {
         console.log("DEBUGGING: Saving products to DynamoDB")
-        window
-          .saveToDynamoDB(productArray)
-          .then((result) => {
+        window.saveToDynamoDB(productArray)
+          .then(result => {
             console.log("DEBUGGING: Products saved to DynamoDB:", result)
           })
-          .catch((error) => {
+          .catch(error => {
             console.error("DEBUGGING: Error saving products to DynamoDB:", error)
           })
       }
@@ -181,12 +182,11 @@ function extractProductsFromDOM() {
     // Save products to DynamoDB if available
     if (products.length > 0 && typeof window.saveToDynamoDB === "function") {
       console.log("DEBUGGING: Saving DOM-extracted products to DynamoDB")
-      window
-        .saveToDynamoDB(products)
-        .then((result) => {
+      window.saveToDynamoDB(products)
+        .then(result => {
           console.log("DEBUGGING: DOM-extracted products saved to DynamoDB:", result)
         })
-        .catch((error) => {
+        .catch(error => {
           console.error("DEBUGGING: Error saving DOM-extracted products to DynamoDB:", error)
         })
     }
@@ -225,25 +225,18 @@ function setupNetworkInterceptor() {
               if (data && (data.products || data.items)) {
                 console.log("DEBUGGING: Found potential product data in API response")
                 window._interceptedProductData = data
-
+                
                 // Save to DynamoDB if possible
                 const productsData = data.products || data.items
-                if (
-                  Array.isArray(productsData) &&
-                  productsData.length > 0 &&
-                  typeof window.saveToDynamoDB === "function"
-                ) {
+                if (Array.isArray(productsData) && productsData.length > 0 && 
+                    typeof window.saveToDynamoDB === "function") {
                   console.log("DEBUGGING: Saving intercepted products to DynamoDB")
-                  window
-                    .saveToDynamoDB(productsData)
-                    .then((result) => {
+                  window.saveToDynamoDB(productsData)
+                    .then(result => {
                       console.log("DEBUGGING: Intercepted products saved to DynamoDB:", result)
                     })
-                    .catch((error) => {
-                      console.error(
-                        "DEBUGGING: Error saving intercepted products to DynamoDB:",
-                        error,
-                      )
+                    .catch(error => {
+                      console.error("DEBUGGING: Error saving intercepted products to DynamoDB:", error)
                     })
                 }
               }
@@ -287,25 +280,18 @@ function setupNetworkInterceptor() {
               if (data && (data.products || data.items)) {
                 console.log("DEBUGGING: Found potential product data in XHR response")
                 window._interceptedXHRData = data
-
+                
                 // Save to DynamoDB if possible
                 const productsData = data.products || data.items
-                if (
-                  Array.isArray(productsData) &&
-                  productsData.length > 0 &&
-                  typeof window.saveToDynamoDB === "function"
-                ) {
+                if (Array.isArray(productsData) && productsData.length > 0 && 
+                    typeof window.saveToDynamoDB === "function") {
                   console.log("DEBUGGING: Saving XHR intercepted products to DynamoDB")
-                  window
-                    .saveToDynamoDB(productsData)
-                    .then((result) => {
+                  window.saveToDynamoDB(productsData)
+                    .then(result => {
                       console.log("DEBUGGING: XHR intercepted products saved to DynamoDB:", result)
                     })
-                    .catch((error) => {
-                      console.error(
-                        "DEBUGGING: Error saving XHR intercepted products to DynamoDB:",
-                        error,
-                      )
+                    .catch(error => {
+                      console.error("DEBUGGING: Error saving XHR intercepted products to DynamoDB:", error)
                     })
                 }
               }
@@ -327,12 +313,9 @@ function setupNetworkInterceptor() {
   console.log("DEBUGGING: Network interceptors set up successfully")
 }
 
-// Import dynamoDB API functions
-import { saveProductsToDynamoDB, testAWSConnectivity } from "./api.js"
-
 // Make the function available globally
-window.saveToDynamoDB = saveProductsToDynamoDB
-window.testAWSConnectivity = testAWSConnectivity
+window.saveToDynamoDB = saveProductsToDynamoDB;
+window.testAWSConnectivity = testAWSConnectivity;
 
 // Wait longer before initial extraction
 function waitForSocialSparrow(maxAttempts = 15, interval = 1000) {
@@ -378,12 +361,12 @@ setupNetworkInterceptor()
 // Test AWS connectivity on startup
 console.log("DEBUGGING: Testing AWS connectivity...")
 testAWSConnectivity()
-  .then((result) => {
+  .then(result => {
     console.log("DEBUGGING: AWS connectivity test result:", result)
   })
-  .catch((error) => {
+  .catch(error => {
     console.error("DEBUGGING: AWS connectivity test error:", error)
-  })
+  });
 
 // Initial extraction with retry mechanism
 console.log("DEBUGGING: Content script loaded, setting up initial extraction")
