@@ -1,5 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn")
+  const saveToDynamoBtn = document.getElementById("saveToDynamoBtn")
+  const statusMessage = document.getElementById("statusMessage")
 
   extractBtn.addEventListener("click", async function () {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -9,6 +11,38 @@ document.addEventListener("DOMContentLoaded", function () {
       function: extractProducts,
     })
   })
+
+  saveToDynamoBtn.addEventListener("click", async function () {
+    showStatus("Extracting and saving products to DynamoDB...", "")
+
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        function: extractAndSaveToDynamoDB,
+      },
+      (results) => {
+        if (chrome.runtime.lastError) {
+          showStatus("Error: " + chrome.runtime.lastError.message, "error")
+          return
+        }
+
+        const result = results[0].result
+        if (result.success) {
+          showStatus(`Successfully saved ${result.count} products to DynamoDB!`, "success")
+        } else {
+          showStatus(`Error: ${result.error}`, "error")
+        }
+      },
+    )
+  })
+
+  function showStatus(message, type) {
+    statusMessage.textContent = message
+    statusMessage.className = type
+    statusMessage.style.display = "block"
+  }
 })
 
 function extractProducts() {
@@ -73,6 +107,79 @@ function extractProducts() {
     console.error("Error extracting products:", error)
     alert("Error extracting products. Check the console for details.")
   }
+}
+
+function extractAndSaveToDynamoDB() {
+  console.log("DEBUGGING: Extract and save to DynamoDB button clicked")
+
+  // Get products using the existing extraction methods
+  let products = []
+
+  // Try intercepted data first
+  if (window._interceptedProductData) {
+    console.log("DEBUGGING: Using intercepted product data for DynamoDB save")
+    products = processProductData(window._interceptedProductData)
+  }
+  // Then try SocialSparrow API
+  else if (
+    typeof window.SocialSparrow !== "undefined" &&
+    typeof window.SocialSparrow.extractProducts === "function"
+  ) {
+    console.log("DEBUGGING: Using SocialSparrow API for DynamoDB save")
+    const extractedProducts = window.SocialSparrow.extractProducts()
+    products = processProductData(extractedProducts)
+  }
+  // Finally try DOM extraction
+  else {
+    console.log("DEBUGGING: Using DOM extraction for DynamoDB save")
+    products = extractProductsFromDOM()
+  }
+
+  // Check if we got products
+  if (!products || products.length === 0) {
+    console.error("DEBUGGING: No products found to save to DynamoDB")
+    return { success: false, error: "No products found to save" }
+  }
+
+  console.log(`DEBUGGING: Preparing to save ${products.length} products to DynamoDB`)
+
+  // Save to DynamoDB if we have the function available
+  if (typeof window.saveToDynamoDB === "function") {
+    return window
+      .saveToDynamoDB(products)
+      .then((result) => {
+        console.log("DEBUGGING: Products saved to DynamoDB:", result)
+        return { success: true, count: products.length }
+      })
+      .catch((error) => {
+        console.error("DEBUGGING: Error saving products to DynamoDB:", error)
+        return { success: false, error: error.message }
+      })
+  } else {
+    console.error("DEBUGGING: saveToDynamoDB function not available")
+    return { success: false, error: "DynamoDB save function not available" }
+  }
+}
+
+// Process product data from various formats into a uniform array
+function processProductData(data) {
+  if (!data) return []
+
+  // Handle different product formats
+  let processedProducts = data
+
+  // Handle object vs array
+  if (typeof processedProducts === "object" && !Array.isArray(processedProducts)) {
+    if (processedProducts.products && Array.isArray(processedProducts.products)) {
+      processedProducts = processedProducts.products
+    } else if (processedProducts.items && Array.isArray(processedProducts.items)) {
+      processedProducts = processedProducts.items
+    } else {
+      processedProducts = [processedProducts]
+    }
+  }
+
+  return processedProducts
 }
 
 function displayProducts(productsData) {

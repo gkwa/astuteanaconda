@@ -12,6 +12,7 @@ export default defineConfig({
         content: resolve(__dirname, "src/content.js"),
         popup: resolve(__dirname, "src/popup.js"),
         socialsparrow: resolve(__dirname, "src/socialsparrow-bundle.js"),
+        options: resolve(__dirname, "src/options.js"),
       },
       output: {
         entryFileNames: "[name].bundle.js",
@@ -29,6 +30,7 @@ export default defineConfig({
       targets: [
         { src: "src/manifest.json", dest: "" },
         { src: "src/popup.html", dest: "" },
+        { src: "src/options.html", dest: "" },
         { src: "icons", dest: "" },
       ],
     }),

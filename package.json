@@ -1,7 +1,7 @@
 {
   "name": "astuteanaconda",
   "version": "1.0.0",
-  "description": "Chrome extension to extract products using SocialSparrow API",
+  "description": "Chrome extension to extract products using SocialSparrow API and save to DynamoDB",
   "type": "module",
   "scripts": {
     "dev": "vite",

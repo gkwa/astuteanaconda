@@ -21,12 +21,29 @@
       button:hover {
         background-color: #3367d6;
       }
+      #statusMessage {
+        margin-top: 10px;
+        padding: 8px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        display: none;
+      }
+      .success {
+        color: green;
+        border: 1px solid green;
+      }
+      .error {
+        color: red;
+        border: 1px solid red;
+      }
     </style>
   </head>
   <body>
     <h3>AstuteAnaconda Product Extractor</h3>
     <p>Click the button below to extract products from the current page:</p>
     <button id="extractBtn">Extract Products</button>
+    <button id="saveToDynamoBtn">Extract & Save to DynamoDB</button>
+    <div id="statusMessage"></div>
     <script src="popup.bundle.js"></script>
   </body>
 </html>
