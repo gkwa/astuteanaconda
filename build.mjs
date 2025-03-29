@@ -63,6 +63,7 @@ async function buildExtension() {
     { input: "src/popup.js", output: "popup" },
     { input: "src/socialsparrow-bundle.js", output: "socialsparrow" },
     { input: "src/options.js", output: "options" },
+    { input: "src/page-script.js", output: "pageScript" }, // Changed to camelCase
   ]
 
   // Build each entry point
@@ -75,8 +76,14 @@ async function buildExtension() {
         sourcemap: true, // Explicitly enable sourcemaps
         lib: {
           entry: resolve(__dirname, input),
-          name: output,
-          fileName: () => `${output}.bundle.js`,
+          name: output, // This is the variable name in the IIFE
+          fileName: () => {
+            // Keep the file name with hyphen but use camelCase for the variable name
+            if (output === "pageScript") {
+              return "page-script.bundle.js"
+            }
+            return `${output}.bundle.js`
+          },
           formats: ["iife"],
         },
         rollupOptions: {

@@ -1,74 +1,15 @@
-// Direct injection script that will run in the page context
-function injectSaveToDynamoDB() {
-  // Create a function in the page context that will be called from the content script
-  window.saveToDynamoDB = async function (products) {
-    // Post a message to the content script
-    window.postMessage(
-      {
-        type: "SAVE_TO_DYNAMODB",
-        products: products,
-      },
-      "*",
-    )
+// Instead of direct injection, we'll use a more CSP-friendly approach
+// by creating a script element that loads from the extension
 
-    // Return a promise that will be resolved when the save is complete
-    return new Promise((resolve, reject) => {
-      // Listen for the response
-      const listener = (event) => {
-        if (event.data.type === "SAVE_TO_DYNAMODB_RESPONSE") {
-          window.removeEventListener("message", listener)
+// Load the main content script
+import "./content/index.js"
 
-          if (event.data.success) {
-            resolve(event.data.result)
-          } else {
-            reject(new Error(event.data.error))
-          }
-        }
-      }
-
-      window.addEventListener("message", listener)
-    })
-  }
-
-  // Also inject testAWSConnectivity
-  window.testAWSConnectivity = async function () {
-    // Post a message to the content script
-    window.postMessage(
-      {
-        type: "TEST_AWS_CONNECTIVITY",
-      },
-      "*",
-    )
-
-    // Return a promise that will be resolved when the test is complete
-    return new Promise((resolve, reject) => {
-      // Listen for the response
-      const listener = (event) => {
-        if (event.data.type === "TEST_AWS_CONNECTIVITY_RESPONSE") {
-          window.removeEventListener("message", listener)
-
-          if (event.data.success) {
-            resolve(event.data.result)
-          } else {
-            reject(new Error(event.data.error))
-          }
-        }
-      }
-
-      window.addEventListener("message", listener)
-    })
-  }
-}
-
-// Create a script element to inject our code
-const scriptElement = document.createElement("script")
-scriptElement.textContent = `(${injectSaveToDynamoDB.toString()})();`
-document.documentElement.appendChild(scriptElement)
-document.documentElement.removeChild(scriptElement)
-
-// Listen for messages from the injected script
+// Set up message passing for communication between content script and page
 window.addEventListener("message", async function (event) {
-  // Check if the message is from our injected script
+  // Only respond to messages from our page
+  if (event.source !== window) return
+
+  // Check if the message is from our page script
   if (event.data.type === "SAVE_TO_DYNAMODB") {
     try {
       // Import dynamically to avoid module issues in content scripts
@@ -128,5 +69,12 @@ window.addEventListener("message", async function (event) {
   }
 })
 
-// Now import the main content script
-import "./content.js"
+// We need to expose the API methods to the page
+// Instead of injecting script, we'll make the methods available through postMessage
+window.addEventListener("DOMContentLoaded", () => {
+  // Add a <script> tag to the page that sets up message passing
+  const script = document.createElement("script")
+  script.src = chrome.runtime.getURL("page-script.bundle.js")
+  ;(document.head || document.documentElement).appendChild(script)
+  script.onload = () => script.remove()
+})
