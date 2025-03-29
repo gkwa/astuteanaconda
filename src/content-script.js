@@ -129,4 +129,4 @@ window.addEventListener("message", async function (event) {
 })
 
 // Now import the main content script
-import "./content/index.js"
+import "./content.js"
