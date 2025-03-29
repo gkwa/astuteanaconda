@@ -21,7 +21,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["socialsparrow.bundle.js", "*.map", "*.js.map"],
+      "resources": ["socialsparrow.bundle.js", "content.bundle.js", "popup.bundle.js", "options.bundle.js", "*.map", "*.js.map"],
       "matches": ["<all_urls>"]
     }
   ],

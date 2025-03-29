@@ -59,7 +59,7 @@ async function buildExtension() {
   
   // Configuration for each entry point
   const entries = [
-    { input: 'src/content.js', output: 'content' },
+    { input: 'src/content-script.js', output: 'content' },
     { input: 'src/popup.js', output: 'popup' },
     { input: 'src/socialsparrow-bundle.js', output: 'socialsparrow' },
     { input: 'src/options.js', output: 'options' },
@@ -72,6 +72,7 @@ async function buildExtension() {
       build: {
         emptyOutDir: false,
         outDir: 'dist',
+        sourcemap: true, // Explicitly enable sourcemaps
         lib: {
           entry: resolve(__dirname, input),
           name: output,
@@ -90,4 +91,3 @@ async function buildExtension() {
 }
 
 buildExtension().catch(console.error);
-
