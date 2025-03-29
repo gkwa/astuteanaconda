@@ -15,7 +15,7 @@ export async function getAWSCredentials() {
           })
         } else {
           reject(
-            new Error("AWS credentials not found. Please configure them in the extension options.")
+            new Error("AWS credentials not found. Please configure them in the extension options."),
           )
         }
       })
@@ -40,7 +40,7 @@ export function saveAWSCredentials(accessKeyId, secretAccessKey) {
           } else {
             resolve()
           }
-        }
+        },
       )
     } else {
       reject(new Error("Chrome storage not available"))

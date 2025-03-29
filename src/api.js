@@ -5,9 +5,9 @@ import {
   transformProducts,
   chunkItems,
   sendBatchToDynamoDB,
-  testDynamoDBConnectivity
+  testDynamoDBConnectivity,
 } from "./dynamodb-service.js"
 
 // Export the DynamoDB functions
-export const saveProductsToDynamoDB = sendBatchToDynamoDB;
-export const testAWSConnectivity = testDynamoDBConnectivity;
+export const saveProductsToDynamoDB = sendBatchToDynamoDB
+export const testAWSConnectivity = testDynamoDBConnectivity
