@@ -4,6 +4,9 @@
  */
 import { saveProductsToDynamoDB } from "../api.js";
 import { debug, error } from "../utils/logger.js";
+import { formatDuration } from "./utils/duration-formatter.js";
+import { normalizeProductData } from "./product-normalization.js";
+import { extractProductsFromDOM } from "./dom-extraction.js";
 
 /**
  * ProductExtractionService - Handles all product extraction operations
@@ -23,6 +26,44 @@ class ProductExtractionService {
                                  typeof window.SocialSparrow.extractProducts === "function";
     debug(`SocialSparrow availability check: ${this.socialSparrowAvailable}`);
     return this.socialSparrowAvailable;
+  }
+
+  /**
+   * Exponential backoff retry for product extraction
+   * @param {Function} extractionFunction - Function to extract products
+   * @param {number} maxRetryTime - Maximum total retry time in milliseconds
+   * @returns {Promise<Array>} - Promise resolving to array of products
+   */
+  async exponentialBackoffExtraction(extractionFunction, maxRetryTime = 90000) {
+    const startTime = Date.now();
+    let delay = 1000; // Start with 1 second
+    const maxDelay = 10000; // Max delay between attempts
+    let attempt = 0;
+
+    while (Date.now() - startTime < maxRetryTime) {
+      attempt++;
+      const remainingTime = maxRetryTime - (Date.now() - startTime);
+
+      debug(`Attempt ${attempt}: Product extraction at ${new Date().toISOString()} ` +
+            `(Remaining time: ${formatDuration(remainingTime)})`);
+
+      const products = await extractionFunction();
+
+      if (products && products.length > 0) {
+        debug(`Successfully extracted ${products.length} products after ${attempt} attempts`);
+        return products;
+      }
+
+      // Calculate next delay with exponential backoff
+      const jitter = Math.random() * 1000; // Add some randomness
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
+
+      // Increase delay exponentially, but cap it
+      delay = Math.min(delay * 2, maxDelay);
+    }
+
+    debug(`Product extraction exhausted maximum retry time after ${attempt} attempts`);
+    return [];
   }
 
   /**
@@ -92,15 +133,19 @@ class ProductExtractionService {
         }
         
         if (this.socialSparrowAvailable) {
-          debug("Extracting products using SocialSparrow API");
-          products = await this.extractProductsFromSocialSparrow();
+          debug("Extracting products using SocialSparrow API with exponential backoff");
+          products = await this.exponentialBackoffExtraction(() =>
+            Promise.resolve(this.extractProductsFromSocialSparrow())
+          );
         }
       }
       
       // If no products found or DOM extraction forced, try DOM extraction
       if (products.length === 0 || forceDomExtraction) {
         debug("Falling back to DOM-based extraction");
-        products = this.extractProductsFromDOM();
+        products = await this.exponentialBackoffExtraction(() =>
+          Promise.resolve(extractProductsFromDOM())
+        );
       }
       
       // Save the products if any were found
@@ -166,112 +211,10 @@ class ProductExtractionService {
         return window._socialsparrow.products;
       }
 
-      return this.normalizeProductData(products);
+      return normalizeProductData(products);
     } catch (error) {
       error("Error extracting products:", error);
       error("Error stack:", error.stack);
-      return [];
-    }
-  }
-
-  /**
-   * Normalize different product data formats into a consistent array
-   * @param {any} products - Products data in various formats
-   * @returns {Array} - Normalized array of products
-   */
-  normalizeProductData(products) {
-    let productArray = [];
-    
-    if (typeof products === "object" && !Array.isArray(products)) {
-      debug("Product is an object, not an array");
-      debug("Object keys:", Object.keys(products));
-
-      if (products.items && Array.isArray(products.items)) {
-        productArray = products.items;
-        debug("Found products in items property");
-      } else if (products.products && Array.isArray(products.products)) {
-        productArray = products.products;
-        debug("Found products in products property");
-      } else if (products.searchTerm && products.products) {
-        productArray = products.products;
-        debug(`Found search results for "${products.searchTerm}" with ${productArray.length} products`);
-      } else {
-        const keys = Object.keys(products);
-        if (keys.length > 0 && keys.every((k) => !isNaN(parseInt(k)))) {
-          productArray = Object.values(products);
-          debug("Converted object with numeric keys to array");
-        } else {
-          for (const key in products) {
-            if (typeof products[key] === "object" && products[key] !== null) {
-              if (products[key].name || products[key].title || products[key].productName) {
-                productArray.push(products[key]);
-                debug(`Added object property ${key} to products array`);
-              }
-            }
-          }
-          debug("Extracted potential product objects from properties");
-        }
-      }
-    } else if (Array.isArray(products)) {
-      debug("Products is already an array");
-      productArray = products;
-    }
-
-    debug(`Found ${productArray.length} product elements`);
-    return productArray;
-  }
-
-  /**
-   * Extract products from DOM as a fallback
-   * @returns {Array} - Array of products
-   */
-  extractProductsFromDOM() {
-    debug("Attempting to extract products from DOM elements");
-    const products = [];
-
-    try {
-      const productContainers = document.querySelectorAll(
-        '.product-grid, .products-grid, [data-test="product-grid"], [data-test="search-results"]'
-      );
-
-      if (productContainers.length === 0) {
-        debug("No product containers found in DOM");
-        return [];
-      }
-
-      productContainers.forEach((container) => {
-        const productElements = container.querySelectorAll(
-          '.product, .product-card, [data-test="product-card"]'
-        );
-        debug(`Found ${productElements.length} product elements in container`);
-
-        productElements.forEach((productEl) => {
-          try {
-            const titleEl = productEl.querySelector(
-              '.product-title, .product-name, [data-test="product-title"]'
-            );
-            const priceEl = productEl.querySelector('.product-price, [data-test="product-price"]');
-            const imageEl = productEl.querySelector("img");
-
-            const product = {
-              name: titleEl ? titleEl.textContent.trim() : "",
-              price: priceEl ? priceEl.textContent.trim() : "",
-              imageUrl: imageEl ? imageEl.src : "",
-              url: productEl.querySelector("a") ? productEl.querySelector("a").href : "",
-            };
-
-            if (product.name) {
-              products.push(product);
-            }
-          } catch (err) {
-            debug("Error extracting individual product:", err);
-          }
-        });
-      });
-
-      return products;
-    } catch (error) {
-      error("Error in DOM extraction:", error);
       return [];
     }
   }
@@ -279,4 +222,3 @@ class ProductExtractionService {
 
 // Export a singleton instance
 export const productExtractor = new ProductExtractionService();
-
