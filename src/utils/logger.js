@@ -3,17 +3,17 @@
  */
 
 // Control whether debug logs are displayed
-const DEBUG_MODE = true;
+const DEBUG_MODE = true
 
 /**
  * Log levels
  */
 export const LogLevel = {
-  DEBUG: 'debug',
-  INFO: 'info',
-  WARN: 'warn',
-  ERROR: 'error'
-};
+  DEBUG: "debug",
+  INFO: "info",
+  WARN: "warn",
+  ERROR: "error",
+}
 
 /**
  * Logs a message with the specified level
@@ -23,31 +23,31 @@ export const LogLevel = {
  */
 export function log(message, level = LogLevel.DEBUG, data = null) {
   if (!DEBUG_MODE && level === LogLevel.DEBUG) {
-    return;
+    return
   }
 
-  const prefix = level === LogLevel.DEBUG ? 'DEBUGGING: ' : `[${level.toUpperCase()}] `;
-  
+  const prefix = level === LogLevel.DEBUG ? "DEBUGGING: " : `[${level.toUpperCase()}] `
+
   switch (level) {
     case LogLevel.ERROR:
       if (data) {
-        console.error(`${prefix}${message}`, data);
+        console.error(`${prefix}${message}`, data)
       } else {
-        console.error(`${prefix}${message}`);
+        console.error(`${prefix}${message}`)
       }
-      break;
+      break
     case LogLevel.WARN:
       if (data) {
-        console.warn(`${prefix}${message}`, data);
+        console.warn(`${prefix}${message}`, data)
       } else {
-        console.warn(`${prefix}${message}`);
+        console.warn(`${prefix}${message}`)
       }
-      break;
+      break
     default:
       if (data) {
-        console.log(`${prefix}${message}`, data);
+        console.log(`${prefix}${message}`, data)
       } else {
-        console.log(`${prefix}${message}`);
+        console.log(`${prefix}${message}`)
       }
   }
 }
@@ -58,7 +58,7 @@ export function log(message, level = LogLevel.DEBUG, data = null) {
  * @param {any} [data] - Optional data to log
  */
 export function debug(message, data = null) {
-  log(message, LogLevel.DEBUG, data);
+  log(message, LogLevel.DEBUG, data)
 }
 
 /**
@@ -67,7 +67,7 @@ export function debug(message, data = null) {
  * @param {any} [data] - Optional data to log
  */
 export function info(message, data = null) {
-  log(message, LogLevel.INFO, data);
+  log(message, LogLevel.INFO, data)
 }
 
 /**
@@ -76,7 +76,7 @@ export function info(message, data = null) {
  * @param {any} [data] - Optional data to log
  */
 export function warn(message, data = null) {
-  log(message, LogLevel.WARN, data);
+  log(message, LogLevel.WARN, data)
 }
 
 /**
@@ -85,6 +85,5 @@ export function warn(message, data = null) {
  * @param {any} [data] - Optional data to log
  */
 export function error(message, data = null) {
-  log(message, LogLevel.ERROR, data);
+  log(message, LogLevel.ERROR, data)
 }
-

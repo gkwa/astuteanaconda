@@ -375,10 +375,10 @@
       return []
     }
   }
-  
+
   // Import the extractProductsFromDOM function from dom-extraction module
   // We'll need to modify the initialization to use this instead
-  
+
   // Function to attempt to intercept API responses
   function setupNetworkInterceptor() {
     console.log("DEBUGGING: Setting up network interceptor")
@@ -512,11 +512,11 @@
       checkSocialSparrow()
     })
   }
-  
+
   // Import the productExtractor from the modern module architecture
   // This will be done dynamically to avoid module issues
-  let productExtractor = null;
-  
+  let productExtractor = null
+
   // Modified initialization function to use the imported DOM extraction
   function init() {
     // Set up network interceptors
@@ -530,91 +530,104 @@
       .catch((error) => {
         console.error("DEBUGGING: AWS connectivity test error:", error)
       })
-    
+
     // Try to get the productExtractor from the modern implementation
-    import("./services/product-extraction-service.js").then(module => {
-      productExtractor = module.productExtractor;
-      console.log("DEBUGGING: Successfully imported productExtractor from modern module");
-      
-      setTimeout(() => {
-        console.log("DEBUGGING: Starting initial extraction");
-        if (productExtractor) {
-          // Use the modern implementation
-          productExtractor.extractProducts()
-            .then(products => {
-              console.log(`DEBUGGING: Initial extraction complete, found ${products.length} products`);
-            })
-            .catch(err => {
-              console.error("DEBUGGING: Error during initial extraction:", err);
-            });
-        } else {
-          // Fall back to the SocialSparrow API
-          waitForSocialSparrow()
-            .then((socialSparrow) => {
-              console.log("DEBUGGING: SocialSparrow found, calling extractProductsFromPage");
-              return extractProductsFromPage();
-            })
-            .catch((error) => {
-              console.error("DEBUGGING: Failed to load SocialSparrow:", error);
-              console.error("DEBUGGING: Cannot extract products, no extraction method available");
-            });
-        }
-      }, 2000);
-    }).catch(err => {
-      console.error("DEBUGGING: Failed to import product-extraction-service, using old implementation:", err);
-      
-      // Initial extraction with old implementation as fallback
-      setTimeout(() => {
-        console.log("DEBUGGING: Starting initial extraction with legacy implementation");
-        waitForSocialSparrow()
-          .then((socialSparrow) => {
-            console.log("DEBUGGING: SocialSparrow found, calling extractProductsFromPage");
-            return extractProductsFromPage();
-          })
-          .catch((error) => {
-            console.error("DEBUGGING: Failed to load SocialSparrow:", error);
-            // Can't extract without the modern DOM extraction or SocialSparrow
-            console.error("DEBUGGING: Cannot extract products, no extraction method available");
-          });
-      }, 2000);
-    });
-    
-    // Track URL changes for single-page applications
-    console.log("DEBUGGING: Setting up MutationObserver for URL changes");
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-      const url = location.href;
-      if (url !== lastUrl) {
-        lastUrl = url;
-        console.log("DEBUGGING: Page navigation detected, waiting for content to load...");
-        // Wait a bit for the new page content to load
+    import("./services/product-extraction-service.js")
+      .then((module) => {
+        productExtractor = module.productExtractor
+        console.log("DEBUGGING: Successfully imported productExtractor from modern module")
+
         setTimeout(() => {
-          console.log("DEBUGGING: Extracting products after navigation");
+          console.log("DEBUGGING: Starting initial extraction")
           if (productExtractor) {
             // Use the modern implementation
-            productExtractor.extractProducts()
-              .then(products => {
-                console.log(`DEBUGGING: Post-navigation extraction complete, found ${products.length} products`);
+            productExtractor
+              .extractProducts()
+              .then((products) => {
+                console.log(
+                  `DEBUGGING: Initial extraction complete, found ${products.length} products`,
+                )
               })
-              .catch(err => {
-                console.error("DEBUGGING: Error during post-navigation extraction:", err);
-              });
+              .catch((err) => {
+                console.error("DEBUGGING: Error during initial extraction:", err)
+              })
+          } else {
+            // Fall back to the SocialSparrow API
+            waitForSocialSparrow()
+              .then((socialSparrow) => {
+                console.log("DEBUGGING: SocialSparrow found, calling extractProductsFromPage")
+                return extractProductsFromPage()
+              })
+              .catch((error) => {
+                console.error("DEBUGGING: Failed to load SocialSparrow:", error)
+                console.error("DEBUGGING: Cannot extract products, no extraction method available")
+              })
+          }
+        }, 2000)
+      })
+      .catch((err) => {
+        console.error(
+          "DEBUGGING: Failed to import product-extraction-service, using old implementation:",
+          err,
+        )
+
+        // Initial extraction with old implementation as fallback
+        setTimeout(() => {
+          console.log("DEBUGGING: Starting initial extraction with legacy implementation")
+          waitForSocialSparrow()
+            .then((socialSparrow) => {
+              console.log("DEBUGGING: SocialSparrow found, calling extractProductsFromPage")
+              return extractProductsFromPage()
+            })
+            .catch((error) => {
+              console.error("DEBUGGING: Failed to load SocialSparrow:", error)
+              // Can't extract without the modern DOM extraction or SocialSparrow
+              console.error("DEBUGGING: Cannot extract products, no extraction method available")
+            })
+        }, 2000)
+      })
+
+    // Track URL changes for single-page applications
+    console.log("DEBUGGING: Setting up MutationObserver for URL changes")
+    let lastUrl = location.href
+    new MutationObserver(() => {
+      const url = location.href
+      if (url !== lastUrl) {
+        lastUrl = url
+        console.log("DEBUGGING: Page navigation detected, waiting for content to load...")
+        // Wait a bit for the new page content to load
+        setTimeout(() => {
+          console.log("DEBUGGING: Extracting products after navigation")
+          if (productExtractor) {
+            // Use the modern implementation
+            productExtractor
+              .extractProducts()
+              .then((products) => {
+                console.log(
+                  `DEBUGGING: Post-navigation extraction complete, found ${products.length} products`,
+                )
+              })
+              .catch((err) => {
+                console.error("DEBUGGING: Error during post-navigation extraction:", err)
+              })
           } else {
             // Fall back to the SocialSparrow API
             waitForSocialSparrow()
               .then(() => extractProductsFromPage())
               .catch((error) => {
-                console.error("DEBUGGING: Failed to load SocialSparrow after navigation:", error);
-                console.error("DEBUGGING: Cannot extract products after navigation, no extraction method available");
-              });
+                console.error("DEBUGGING: Failed to load SocialSparrow after navigation:", error)
+                console.error(
+                  "DEBUGGING: Cannot extract products after navigation, no extraction method available",
+                )
+              })
           }
-        }, 3000); // Increased wait time to 3 seconds
+        }, 3000) // Increased wait time to 3 seconds
       }
-    }).observe(document, { subtree: true, childList: true });
-    
-    console.log("DEBUGGING: Content script initialization complete");
+    }).observe(document, { subtree: true, childList: true })
+
+    console.log("DEBUGGING: Content script initialization complete")
   }
-  
+
   // Start the initialization
-  init();
+  init()
 })()
