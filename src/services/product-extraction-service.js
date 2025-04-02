@@ -7,6 +7,7 @@ import { debug, error } from "../utils/logger.js"
 import { formatDuration } from "./utils/duration-formatter.js"
 import { normalizeProductData } from "./product-normalization.js"
 import { extractProductsFromDOM } from "./dom-extraction.js"
+import { statusOverlay } from "../utils/overlay.js"
 
 /**
  * ProductExtractionService - Handles all product extraction operations
@@ -41,6 +42,8 @@ class ProductExtractionService {
     const maxDelay = 10000 // Max delay between attempts
     let attempt = 0
 
+    statusOverlay.showInfo("Scanning for products...")
+
     while (Date.now() - startTime < maxRetryTime) {
       attempt++
       const remainingTime = maxRetryTime - (Date.now() - startTime)
@@ -50,10 +53,15 @@ class ProductExtractionService {
           `(Remaining time: ${formatDuration(remainingTime)})`,
       )
 
+      if (attempt > 1) {
+        statusOverlay.showInfo(`Scanning for products (attempt ${attempt})...`)
+      }
+
       const products = await extractionFunction()
 
       if (products && products.length > 0) {
         debug(`Successfully extracted ${products.length} products after ${attempt} attempts`)
+        statusOverlay.showSuccess(`Found ${products.length} products!`, 3000)
         return products
       }
 
@@ -66,6 +74,7 @@ class ProductExtractionService {
     }
 
     debug(`Product extraction exhausted maximum retry time after ${attempt} attempts`)
+    statusOverlay.showWarning("No products found after multiple attempts", 5000)
     return []
   }
 
@@ -77,6 +86,8 @@ class ProductExtractionService {
    */
   waitForSocialSparrow(maxAttempts = 15, interval = 1000) {
     debug("Starting waitForSocialSparrow")
+    statusOverlay.showInfo("Waiting for SocialSparrow API...")
+
     return new Promise((resolve, reject) => {
       let attempts = 0
 
@@ -90,11 +101,13 @@ class ProductExtractionService {
           if (typeof window.SocialSparrow.extractProducts === "function") {
             debug("SocialSparrow API methods ready")
             this.socialSparrowAvailable = true
+            statusOverlay.showSuccess("SocialSparrow API ready", 2000)
             setTimeout(() => resolve(window.SocialSparrow), 500)
           } else {
             debug("SocialSparrow API found but methods not ready yet")
             if (attempts >= maxAttempts) {
               this.socialSparrowAvailable = false
+              statusOverlay.showError("SocialSparrow API methods not available", 3000)
               reject(new Error("SocialSparrow API methods not available after maximum attempts"))
             } else {
               setTimeout(checkSocialSparrow, interval)
@@ -103,6 +116,7 @@ class ProductExtractionService {
         } else if (attempts >= maxAttempts) {
           error("SocialSparrow API failed to load after maximum attempts")
           this.socialSparrowAvailable = false
+          statusOverlay.showError("SocialSparrow API not available", 3000)
           reject(new Error("SocialSparrow API not available"))
         } else {
           debug(`SocialSparrow not found yet, trying again in ${interval}ms`)
@@ -132,6 +146,7 @@ class ProductExtractionService {
             await this.waitForSocialSparrow()
           } catch (sparrowError) {
             debug("SocialSparrow not available, will try DOM extraction")
+            statusOverlay.showInfo("SocialSparrow not available, trying DOM extraction...")
           }
         }
 
@@ -146,6 +161,7 @@ class ProductExtractionService {
       // If no products found or DOM extraction forced, try DOM extraction
       if (products.length === 0 || forceDomExtraction) {
         debug("Falling back to DOM-based extraction")
+        statusOverlay.showInfo("Extracting products from page elements...")
         products = await this.exponentialBackoffExtraction(() =>
           Promise.resolve(extractProductsFromDOM()),
         )
@@ -154,6 +170,7 @@ class ProductExtractionService {
       // Save the products if any were found
       if (products.length > 0) {
         debug(`Total products found: ${products.length}`)
+
         if (products.length > 0) {
           console.table(products)
         }
@@ -162,16 +179,20 @@ class ProductExtractionService {
         try {
           const result = await saveProductsToDynamoDB(products)
           debug("Products saved to DynamoDB:", result)
+          return products
         } catch (dbError) {
           error("Error saving products to DynamoDB:", dbError)
+          statusOverlay.showError(`Error saving to DynamoDB: ${dbError.message}`, 8000)
+          return products
         }
       } else {
         debug("No products found")
+        statusOverlay.showError("No products found on this page", 5000)
+        return []
       }
-
-      return products
     } catch (err) {
       error("Error in product extraction process:", err)
+      statusOverlay.showError(`Extraction error: ${err.message}`, 8000)
       return []
     }
   }

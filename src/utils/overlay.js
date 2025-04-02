@@ -8,6 +8,7 @@ import { debug } from "./logger.js"
 const STATUS_SUCCESS = "success"
 const STATUS_ERROR = "error"
 const STATUS_INFO = "info"
+const STATUS_WARNING = "warning"
 
 /**
  * Create and manage an overlay that displays status messages on the page
@@ -80,7 +81,7 @@ class StatusOverlay {
   /**
    * Show a message in the overlay
    * @param {string} message - The message to display
-   * @param {string} type - The type of message (success, error, info)
+   * @param {string} type - The type of message (success, error, info, warning)
    * @param {number} duration - How long to show the message in ms (0 for indefinite)
    */
   show(message, type = STATUS_INFO, duration = 5000) {
@@ -101,6 +102,10 @@ class StatusOverlay {
         break
       case STATUS_ERROR:
         this.overlay.style.backgroundColor = "#F44336"
+        this.overlay.style.color = "#fff"
+        break
+      case STATUS_WARNING:
+        this.overlay.style.backgroundColor = "#FF9800"
         this.overlay.style.color = "#fff"
         break
       default: // info
@@ -134,6 +139,15 @@ class StatusOverlay {
    */
   showError(message, duration = 8000) {
     this.show(message, STATUS_ERROR, duration)
+  }
+
+  /**
+   * Show a warning message
+   * @param {string} message - The message to display
+   * @param {number} duration - How long to show the message in ms
+   */
+  showWarning(message, duration = 6000) {
+    this.show(message, STATUS_WARNING, duration)
   }
 
   /**
