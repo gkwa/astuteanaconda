@@ -83,9 +83,8 @@ class StatusOverlay {
    * @param {string} message - The message to display
    * @param {string} type - The type of message (success, error, info, warning)
    * @param {number} duration - How long to show the message in ms (0 for indefinite)
-   * @param {boolean} autoDismiss - Whether to automatically dismiss the message
    */
-  show(message, type = STATUS_INFO, duration = 5000, autoDismiss = false) {
+  show(message, type = STATUS_INFO, duration = 0) {
     debug(`Showing overlay message: ${message} (${type})`)
     this.createOverlay()
 
@@ -118,8 +117,8 @@ class StatusOverlay {
     this.overlay.style.opacity = "1"
     this.overlay.style.display = "block"
 
-    // Set auto-hide timeout if duration is provided and autoDismiss is true
-    if (duration > 0 && autoDismiss) {
+    // Set auto-hide timeout if duration is provided
+    if (duration > 0) {
       this.timeoutId = setTimeout(() => this.hide(), duration)
     }
   }
@@ -128,40 +127,36 @@ class StatusOverlay {
    * Show a success message
    * @param {string} message - The message to display
    * @param {number} duration - How long to show the message in ms
-   * @param {boolean} autoDismiss - Whether to automatically dismiss the message
    */
-  showSuccess(message, duration = 5000, autoDismiss = false) {
-    this.show(message, STATUS_SUCCESS, duration, autoDismiss)
+  showSuccess(message, duration = 0) {
+    this.show(message, STATUS_SUCCESS, duration)
   }
 
   /**
    * Show an error message
    * @param {string} message - The message to display
    * @param {number} duration - How long to show the message in ms
-   * @param {boolean} autoDismiss - Whether to automatically dismiss the message
    */
-  showError(message, duration = 8000, autoDismiss = false) {
-    this.show(message, STATUS_ERROR, duration, autoDismiss)
+  showError(message, duration = 0) {
+    this.show(message, STATUS_ERROR, duration)
   }
 
   /**
    * Show a warning message
    * @param {string} message - The message to display
    * @param {number} duration - How long to show the message in ms
-   * @param {boolean} autoDismiss - Whether to automatically dismiss the message
    */
-  showWarning(message, duration = 6000, autoDismiss = false) {
-    this.show(message, STATUS_WARNING, duration, autoDismiss)
+  showWarning(message, duration = 0) {
+    this.show(message, STATUS_WARNING, duration)
   }
 
   /**
    * Show an info message
    * @param {string} message - The message to display
    * @param {number} duration - How long to show the message in ms
-   * @param {boolean} autoDismiss - Whether to automatically dismiss the message
    */
-  showInfo(message, duration = 5000, autoDismiss = true) {
-    this.show(message, STATUS_INFO, duration, autoDismiss)
+  showInfo(message, duration = 0) {
+    this.show(message, STATUS_INFO, duration)
   }
 
   /**
