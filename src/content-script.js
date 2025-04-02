@@ -23,13 +23,9 @@ window.addEventListener("message", async function (event) {
       if (result.success) {
         statusOverlay.showSuccess(
           `Successfully saved ${result.count} products to DynamoDB (${result.batches} batches)`,
-          8000,
         )
       } else {
-        statusOverlay.showError(
-          `Error saving products to DynamoDB. Some batches may have failed.`,
-          10000,
-        )
+        statusOverlay.showError(`Error saving products to DynamoDB. Some batches may have failed.`)
       }
 
       // Send the response back
@@ -43,7 +39,7 @@ window.addEventListener("message", async function (event) {
       )
     } catch (error) {
       // Show error message
-      statusOverlay.showError(`Error saving products: ${error.message}`, 10000)
+      statusOverlay.showError(`Error saving products: ${error.message}`)
 
       // Send the error back
       window.postMessage(
@@ -61,16 +57,16 @@ window.addEventListener("message", async function (event) {
       const { testAWSConnectivity } = await import("./api.js")
 
       // Show testing message
-      statusOverlay.showInfo("Testing AWS connectivity...")
+      statusOverlay.showInfo("Testing AWS connectivity...", 0, true)
 
       // Test connectivity
       const result = await testAWSConnectivity()
 
       // Show result message
       if (result.success) {
-        statusOverlay.showSuccess("AWS connectivity test successful!", 5000)
+        statusOverlay.showSuccess("AWS connectivity test successful!", 5000, true)
       } else {
-        statusOverlay.showError(`AWS connectivity test failed: ${result.error}`, 8000)
+        statusOverlay.showError(`AWS connectivity test failed: ${result.error}`)
       }
 
       // Send the response back
@@ -84,7 +80,7 @@ window.addEventListener("message", async function (event) {
       )
     } catch (error) {
       // Show error message
-      statusOverlay.showError(`AWS connectivity test error: ${error.message}`, 8000)
+      statusOverlay.showError(`AWS connectivity test error: ${error.message}`)
 
       // Send the error back
       window.postMessage(
@@ -100,32 +96,27 @@ window.addEventListener("message", async function (event) {
     // Display product count message
     const { count, success } = event.data
     if (success) {
-      statusOverlay.showSuccess(`Found ${count} products on this page`, 5000)
+      statusOverlay.showSuccess(`Found ${count} products on this page`)
     } else {
-      statusOverlay.showError(`No products found on this page`, 5000)
+      statusOverlay.showError(`No products found on this page`)
     }
   } else if (event.data.type === "SHOW_BATCH_STATUS") {
-    // Display batch status message
+    // Display batch status message (temporary info message)
     const { currentBatch, totalBatches } = event.data
-    statusOverlay.showInfo(`Processing batch ${currentBatch} of ${totalBatches}...`)
+    statusOverlay.showInfo(`Processing batch ${currentBatch} of ${totalBatches}...`, 0, true)
   } else if (event.data.type === "SHOW_SAVE_RESULT") {
-    // Display save result message
+    // Display save result message (persistent)
     const { count, batches, successfulBatches, failedBatches } = event.data
 
     if (failedBatches === 0) {
       statusOverlay.showSuccess(
         `Successfully saved ${count} products to DynamoDB (${batches} batches)`,
-        8000,
       )
     } else if (successfulBatches === 0) {
-      statusOverlay.showError(
-        `Failed to save products to DynamoDB. All ${batches} batches failed.`,
-        10000,
-      )
+      statusOverlay.showError(`Failed to save products to DynamoDB. All ${batches} batches failed.`)
     } else {
       statusOverlay.showError(
         `Partially saved products to DynamoDB. ${successfulBatches} batches successful, ${failedBatches} batches failed.`,
-        10000,
       )
     }
   }
