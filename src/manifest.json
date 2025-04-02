@@ -14,7 +14,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["*://www.uwajimaya.com/*", "*://delivery.pccmarkets.com/*", "*://seattle.lamsseafood.com/*", "*://www.amazon.com/*", "*://www.chefstore.com/*", "*://www.fredmeyer.com/*", "*://www.qfc.com/*", "*://www.safeway.com/*", "*://www.target.com/*", "*://www.traderjoes.com/*", "*://www.walmart.com/*", "*://www.wholefoodsmarket.com/*"],
       "js": ["socialsparrow.bundle.js", "content.bundle.js"],
       "run_at": "document_idle"
     }
