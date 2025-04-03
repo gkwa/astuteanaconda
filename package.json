@@ -18,12 +18,8 @@
     "socialsparrow": "^0.3.14"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ],
-    "ignoredBuiltDependencies": [
-      "esbuild"
-    ],
+    "onlyBuiltDependencies": ["esbuild"],
+    "ignoredBuiltDependencies": ["esbuild"],
     "overrides": {
       "socialsparrow": "link:../../../Library/pnpm/global/5/node_modules/socialsparrow"
     }
