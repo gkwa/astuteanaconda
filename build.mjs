@@ -26,6 +26,7 @@ async function copyFiles() {
   const iconDir = path.join(__dirname, "icons")
   try {
     const icons = await fs.readdir(iconDir)
+
     // Create icons directory in dist
     await fs.mkdir(path.join(__dirname, "dist/icons"), { recursive: true })
 
@@ -45,6 +46,7 @@ async function copyFiles() {
     try {
       const content = await fs.readFile(path.join(__dirname, file.src))
       await fs.writeFile(path.join(__dirname, file.dest), content)
+      console.log(`Copied ${file.src} to ${file.dest}`)
     } catch (err) {
       console.error(`Error copying ${file.src}:`, err.message)
     }
@@ -61,71 +63,38 @@ async function buildExtension() {
     { input: "src/popup.js", output: "popup" },
     { input: "src/socialsparrow-bundle.js", output: "socialsparrow" },
     { input: "src/options.js", output: "options" },
-    { input: "src/page-script.js", output: "pageScript" },
+    { input: "src/page-script.js", output: "pageScript" }, // Changed to camelCase
   ]
 
-  // Capture console output
-  const originalConsoleLog = console.log
-  const originalConsoleInfo = console.info
-
-  console.log = (...args) => {
-    const message = args.join(" ")
-    // Only show error messages or warnings
-    if (
-      message.includes("Error:") ||
-      message.includes("error:") ||
-      message.includes("Warning:") ||
-      message.includes("warning:")
-    ) {
-      originalConsoleLog(...args)
-    }
-  }
-
-  console.info = (...args) => {
-    const message = args.join(" ")
-    // Only show error messages or warnings
-    if (
-      message.includes("Error:") ||
-      message.includes("error:") ||
-      message.includes("Warning:") ||
-      message.includes("warning:")
-    ) {
-      originalConsoleInfo(...args)
-    }
-  }
-
-  try {
-    // Build each entry point
-    for (const { input, output } of entries) {
-      await build({
-        configFile: false,
-        build: {
-          emptyOutDir: false,
-          outDir: "dist",
-          sourcemap: true,
-          lib: {
-            entry: resolve(__dirname, input),
-            name: output,
-            fileName: () => {
-              if (output === "pageScript") {
-                return "page-script.bundle.js"
-              }
-              return `${output}.bundle.js`
-            },
-            formats: ["iife"],
+  // Build each entry point
+  for (const { input, output } of entries) {
+    await build({
+      configFile: false,
+      build: {
+        emptyOutDir: false,
+        outDir: "dist",
+        sourcemap: true, // Explicitly enable sourcemaps
+        lib: {
+          entry: resolve(__dirname, input),
+          name: output, // This is the variable name in the IIFE
+          fileName: () => {
+            // Keep the file name with hyphen but use camelCase for the variable name
+            if (output === "pageScript") {
+              return "page-script.bundle.js"
+            }
+            return `${output}.bundle.js`
           },
-          rollupOptions: {
-            external: [],
-          },
-          logLevel: "error",
+          formats: ["iife"],
         },
-      })
-    }
-  } finally {
-    // Restore console functions
-    console.log = originalConsoleLog
-    console.info = originalConsoleInfo
+        rollupOptions: {
+          external: [],
+        },
+      },
+    })
+    console.log(`Built ${output} successfully`)
   }
+
+  console.log("Build completed successfully")
 }
 
 buildExtension().catch(console.error)

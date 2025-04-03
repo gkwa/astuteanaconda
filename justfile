@@ -10,7 +10,7 @@ install:
 
 # Build the extension
 build:
-    @pnpm run build > /dev/null 2>&1 || echo "Build failed with an error"
+    pnpm run build
 
 # Watch for changes and rebuild
 watch:
