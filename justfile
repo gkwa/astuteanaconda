@@ -1,5 +1,3 @@
-# Justfile for AstuteAnaconda Chrome Extension
-
 # Default recipe
 default:
     @just --list
@@ -16,15 +14,6 @@ build:
 watch:
     pnpm run watch
 
-# Clean build artifacts
-clean:
-    rm -rf dist
-
-# Build and package the extension
-package: clean build
-    mkdir -p packages
-    cd dist && zip -r ../packages/astuteanaconda-product-extractor.zip .
-
 # Set up the development environment
 setup: install build
     @echo "Extension built successfully. Load the 'dist' folder in Chrome extensions page."
@@ -32,3 +21,7 @@ setup: install build
 # Run all checks
 check:
     pnpm run lint
+
+# Clean build artifacts
+clean:
+    rm -rf dist
