@@ -36,7 +36,7 @@ class ProductExtractionService {
    * @param {number} maxRetryTime - Maximum total retry time in milliseconds
    * @returns {Promise<Array>} - Promise resolving to array of products
    */
-  async exponentialBackoffExtraction(extractionFunction, maxRetryTime = 90000) {
+  async exponentialBackoffExtraction(extractionFunction, maxRetryTime = 120000) {
     const startTime = Date.now()
     let delay = 1000 // Start with 1 second
     const maxDelay = 10000 // Max delay between attempts
