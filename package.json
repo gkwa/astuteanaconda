@@ -15,7 +15,7 @@
     "vite-plugin-static-copy": "^2.3.1"
   },
   "dependencies": {
-    "socialsparrow": "^0.3.24"
+    "socialsparrow": "^0.3.25"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
