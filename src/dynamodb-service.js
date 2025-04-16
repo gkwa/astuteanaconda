@@ -195,7 +195,7 @@ export function transformProducts(products, domain) {
     // Mark this key as seen
     seenKeys.add(`${category}:${timestamp}`)
 
-    // Create the DynamoDB item
+    // Create the DynamoDB item with product attributes
     const dynamoItem = {
       PutRequest: {
         Item: {
@@ -204,14 +204,11 @@ export function transformProducts(products, domain) {
           domain: { S: domain },
           ttl: { N: String(generateTTL()) },
           entity_type: { S: "category" },
-          product: { M: {} },
         },
       },
     }
 
-    // Add all product properties to the product map
-    const productMap = dynamoItem.PutRequest.Item.product.M
-
+    // Add all product properties
     for (const [key, value] of Object.entries(product)) {
       // Skip keys that are already top-level attributes
       if (["category", "timestamp", "domain", "ttl", "entity_type"].includes(key)) {
@@ -220,19 +217,19 @@ export function transformProducts(products, domain) {
 
       // Handle different value types
       if (value === null) {
-        productMap[key] = { NULL: true }
+        dynamoItem.PutRequest.Item[key] = { NULL: true }
       } else if (typeof value === "boolean") {
-        productMap[key] = { BOOL: value }
+        dynamoItem.PutRequest.Item[key] = { BOOL: value }
       } else if (typeof value === "number") {
-        productMap[key] = { N: String(value) }
+        dynamoItem.PutRequest.Item[key] = { N: String(value) }
       } else if (Array.isArray(value)) {
         // For arrays, stringify them to store as a string
-        productMap[key] = { S: JSON.stringify(value) }
+        dynamoItem.PutRequest.Item[key] = { S: JSON.stringify(value) }
       } else if (typeof value === "object") {
         // For objects, stringify them to store as a string
-        productMap[key] = { S: JSON.stringify(value) }
+        dynamoItem.PutRequest.Item[key] = { S: JSON.stringify(value) }
       } else {
-        productMap[key] = { S: String(value) }
+        dynamoItem.PutRequest.Item[key] = { S: String(value) }
       }
     }
 
@@ -341,7 +338,7 @@ export async function testDynamoDBConnectivity() {
           domain: { S: "test.example.com" },
           ttl: { N: String(Math.floor(Date.now() / 1000) + 3600) }, // 1 hour expiry
           entity_type: { S: "test" },
-          product: { M: { name: { S: "Test Product" } } },
+          name: { S: "Test Product" },
         },
       },
     }
